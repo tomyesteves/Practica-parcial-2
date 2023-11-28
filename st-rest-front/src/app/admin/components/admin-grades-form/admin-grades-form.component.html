@@ -1,1 +1,17 @@
-<p>admin-grades-form works!</p>
+<div class="mb-3 row">
+    <h2>{{title}}</h2>
+    <form [formGroup]="gradeForm" (ngSubmit)="onAdd()">
+        <label for="descripcion" class="col-sm-2 col-form-label">Descripción</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" id="descripcion" formControlName="descripcion" name="descripcion"
+                type="text">
+            <div *ngIf="gradeForm.get('descripcion')?.touched && gradeForm.get('descripcion')?.errors?.['required']">
+                El nombre es obligatorio.
+            </div>
+            <div *ngIf="gradeForm.get('descripcion')?.touched && gradeForm.get('descripcion')?.errors?.['minLength']">
+                El largo debe ser mayor a 2.
+            </div>
+        </div>
+        <button class="btn btn-success btn-sm" type="submit">Crear</button>
+    </form>
+</div>

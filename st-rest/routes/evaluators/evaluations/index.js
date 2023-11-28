@@ -4,13 +4,13 @@ import { getEvaluationsQuery } from "../../../db/queries/evaluators/evaluations.
 export default async function (fastify, opts) {
     const postRouteSchema = {
         summary: 'Add an evaluation',
-        tags: ['evaluator'],
+        tags: ['evaluators'],
         response: {
             201: {
                 description: 'Ok. Successful evaluation add.',
                 content: {
                     "application/json": {
-                        "schema": { $ref: "evaluationPostSchema" }
+                        "schema": { $ref: 'evaluationResponseSchema' }
                     }
                 }
             }
@@ -19,7 +19,7 @@ export default async function (fastify, opts) {
 
     fastify.post("/", {
         onRequest: (request, reply, done) => {
-            console.log("Request aprobada en POST /evaluators/evaluations/, sustituir por función de validación de token");
+            //TODO: "Request aprobada en POST /evaluators/evaluations/, sustituir por función de validación de token"
             done();
         },
         schema: postRouteSchema,
@@ -31,24 +31,17 @@ export default async function (fastify, opts) {
             //secretToken basado en función now(), convertido a hexadecimal
             const secretToken = Date.now().toString(36);
             const statusId = 0;
-            const res = await query("INSERT INTO evaluations (description, institution, date, \"secretToken\", \"statusId\", \"userId\") VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            const res = await query("INSERT INTO evaluations (description, institution, date, \"secretToken\", \"statusId\", \"userId\") VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
                 [description, institution, date, secretToken, statusId, userId]);
             reply.code(201);
-            return {
-                _links: {
-                    "self": { href: fastify.getFullLink(request, `${request.raw.url}`) }
-                },
-                _embedded: {
-                    "items": { href: fastify.getFullLink(request, `${request.raw.url}/${res.rows[0].id}`) }
-                }
-            };
+            return res.rows[0];
         }
-    })
+    });
 
     const getEvaluationsRouteSchema = {
         "$id": 'evaluationsResponsesSchema',
         summary: 'Get the list of evaluations',
-        tags: ['evaluator'],
+        tags: ['evaluators'],
         response: {
             200: {
                 description: 'Ok. Return an evaluations list.',
@@ -60,36 +53,18 @@ export default async function (fastify, opts) {
                     }
                 }
             },
-            204: {
-                $ref: "generic204ResponseSchema"
-            }
         },
     };
 
     fastify.get("/", {
         onRequest: (request, reply, done) => {
-            console.log("Request aprobada en GET /evaluators/evaluations/, sustituir por función de validación de token");
+            //TODO: console.log("Request aprobada en GET /evaluators/evaluations/, sustituir por función de validación de token");
             done();
         },
         schema: getEvaluationsRouteSchema,
         handler: async (request, reply) => {
             const resultado = (await query("SELECT * FROM evaluations"));
-            if (resultado.rowCount == 0) {
-                reply.code(204);
-                return;
-            }
-            const res = resultado.rows;
-            return {
-                _links: {
-                    self: { href: fastify.getFullLink(request) }
-                },
-                _embedded: res.map(e => ({
-                    ...e,
-                    _links: {
-                        self: { href: fastify.getFullLink(request, `${request.raw.url}/${e.id}`) },
-                    }
-                })),
-            };
+            return resultado.rows;
         },
     });
 }

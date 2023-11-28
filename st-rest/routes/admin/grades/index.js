@@ -7,7 +7,7 @@ export default async function (fastify, opts) {
   const getRouteSchema = {
     "$id": 'gradeResponsesSchema',
     summary: 'Get the list of grades',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       200: {
         description: 'Ok. Return a grades list.',
@@ -19,9 +19,6 @@ export default async function (fastify, opts) {
           }
         }
       },
-      204: {
-        $ref: "generic204ResponseSchema"
-      }
     },
   }
 
@@ -29,23 +26,14 @@ export default async function (fastify, opts) {
   fastify.get("/", {
     schema: getRouteSchema,
     handler: async function (request, reply) {
-      const res = (await query(getGradesQuery())).rows
-      return {
-        _links: {
-          self: { href: fastify.getFullLink(request) }
-        },
-        _embedded: res.map(g => ({
-          ...g, _links: {
-            self: { href: fastify.getFullLink(request, `${request.raw.url}/${g.id}`) }
-          }
-        })),
-      };
+      const res = (await query(getGradesQuery()))
+      return res.rows;
     }
   })
 
   const getIdRouteSchema = {
     summary: 'Get a grade by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       200: {
         description: 'Ok.',
@@ -64,23 +52,14 @@ export default async function (fastify, opts) {
       if (resultado.rowCount == 0) {
         throw fastify.httpErrors.notFound();
       }
-      if (resultado.rowCount > 1) {
-        throw fastify.httpErrors.internalServerError("Duplicated id");
-      }
-      const res = resultado.rows[0];
-      return {
-        ...res,
-        _links: {
-          "self": { href: fastify.getFullLink(request, `${request.raw.url}`) },
-        }
-      };
+      return resultado.rows[0];
     }
   })
 
   //CREATE NEW GRADE
   const postRouteSchema = {
     summary: 'Create a new grade',
-    tags: ['administrator'],
+    tags: ['admin'],
     body: { $ref: "gradePostSchema" },
     response: {
       201: {
@@ -98,29 +77,26 @@ export default async function (fastify, opts) {
     schema: postRouteSchema,
     handler: async function (request, reply) {
       const body = request.body;
-      console.log({ body });
       const { name } = body;
-
       const resultado = await query('INSERT INTO "grades"(name) VALUES($1) RETURNING *', [name]);
       reply.code(201);
-      const res = resultado.rows[0];
-      return {
-        ...res,
-        _links: {
-          "self": { href: fastify.getFullLink(request, `${request.raw.url}`) },
-        }
-      };
+      return resultado.rows[0];
     }
   })
 
   //UPDATE GRADE
   const putRouteSchema = {
     summary: 'Create a new grade',
-    tags: ['administrator'],
+    tags: ['admin'],
     body: { $ref: "gradePostSchema" },
     response: {
-      204: {
-        $ref: "generic204ResponseSchema"
+      200: {
+        description: 'Ok. Successful grade update.',
+        content: {
+          "application/json": {
+            "schema": { $ref: "gradeResponseSchema" }
+          }
+        }
       }
     },
   }
@@ -133,9 +109,46 @@ export default async function (fastify, opts) {
       if (id != body.id) {
         return reply.notAcceptable();
       }
-      await query('UPDATE grades SET name=$1 WHERE id=$2', [body.name, id]);
-      reply.code(204);
-      return;
+      const res = await query('UPDATE grades SET name=$1 WHERE id=$2 RETURNING *', [body.name, id]);
+      if (res.rows.length !== 1) reply.notFound("No id " + id + " found.");
+      return res.rows[0];
     }
   })
+
+  const deleteRouteSchema = {
+    "$id": 'gradeResponsesSchema',
+    summary: 'Delete a course by id',
+    tags: ['admin'],
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' }
+      },
+      required: ['id'],
+    },
+    response: {
+      204: {
+        description: 'Ok. Successful course deletion',
+        type: 'object',
+        properties: {},
+      },
+    },
+  };
+  fastify.delete("/:id", {
+    schema: deleteRouteSchema,
+    handler: async function (request, reply) {
+      const id = request.params.id;
+      const resultado = await query('DELETE FROM public.grades WHERE id=$1', [id]);
+
+      if (resultado.rowCount === 0) {
+        throw fastify.httpErrors.notFound();
+      }
+
+      reply.code(204);
+      return;
+    },
+  });
+
+
+
 }

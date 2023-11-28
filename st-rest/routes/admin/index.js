@@ -18,46 +18,6 @@ export default async function (fastify, opts) {
   //   }
   // })
 
-  fastify.get("/", {
-    schema: {
-      summary: 'Administrators endpoint',
-      tags: ['administrator'],
-      response: {
-        200: {
-          description: 'Ok.',
-          content: {
-            "application/json": {
-              "schema": { $ref: "adminResponseSchema" }
-            }
-          }
-        }
-      }
-    },
-    // onRequest: [fastify.authenticateAdmin],
-    handler: (request, reply) => {
-      // const urlCompleta = request.protocol + '://' + request.hostname + request.raw.url;
-      //TODO: Acá la respuesta debería ser según que rol tenga el usuario.
-      const res = {
-        "info": fastify.swagger().info,
-        _links: {
-          self: { href: fastify.getFullLink(request) },
-          "grades": { href: fastify.getFullLink(request, `${request.raw.url}/grades`) },
-          "tests": { href: fastify.getFullLink(request, `${request.raw.url}/tests`) }
-        }
-      }
-      reply.send(res);
-    }
-  });
-
-  fastify.get("/prueba", {
-    // onRequest: [fastify.authenticateAdmin],
-    handler: async function (request, reply) {
-      console.log(request.user);
-      return request.user;
-    }
-  },
-  )
-
   fastify.post('/login', (request, reply) => {
     const { username, password } = request.body;
     if (password != "lepassword" || username != "admin") {

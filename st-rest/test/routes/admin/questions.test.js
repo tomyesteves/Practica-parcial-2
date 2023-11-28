@@ -1,5 +1,6 @@
 import { test } from 'tap';
 import { build } from '../../helper.js';
+import { query } from '../../../db/index.js';
 
 test('get all questions', async (t) => {
   const app = await build(t);
@@ -9,10 +10,7 @@ test('get all questions', async (t) => {
     url: '/admin/tests/1/parts/1/questions'
   });
   const payload = JSON.parse(response.payload);
-
   t.equal(response.statusCode, 200, 'El código de respuesta es 200 (OK)');
-  // No tiene mucho sentido chequear por _links, ya que los esquemas deberían detectarlo.
-  t.ok(payload.hasOwnProperty('_links'), 'La propiedad "_links" existe en la respuesta');
 });
 
 test('get question by id', async (t) => {
@@ -23,14 +21,16 @@ test('get question by id', async (t) => {
   });
   const payload = JSON.parse(response.payload);
   t.equal(response.statusCode, 200, "El código de respuesta es 200 (OK)");
-  t.ok(payload.hasOwnProperty('_links'), 'La propiedad "_links" existe en la respuesta');
 });
 
 test('POST /admin/questions', async (t) => {
+  //Arrange
+  const resBd = await query('SELECT MAX(number) FROM public.questions WHERE "partId" = 1');
+  const siguienteNumero = resBd.rows[0].max + 1;
   const app = await build(t);
   const payload = {
-    "description":"Test 2 POST",
-    "number": 342,
+    "description": "Test 2 POST",
+    "number": siguienteNumero,
     "isExample": false
   };
   const response = await app.inject({
@@ -45,7 +45,7 @@ test('PUT /admin/questions/:id', async (t) => {
   const app = await build(t);
   const payload = {
     "id": 341,
-    "description":"Test 2 PUT",
+    "description": "Test 2 PUT",
     "number": 344,
     "isExample": false
   };
@@ -54,7 +54,7 @@ test('PUT /admin/questions/:id', async (t) => {
     url: '/admin/tests/1/parts/1/questions/341',
     payload
   });
-  t.equal(response.statusCode, 204, "El código de respuesta es 204 (No Content)(PUT)");
+  t.equal(response.statusCode, 200, "El código de respuesta es 200");
 });
 
 test('DELETE /admin/questions/:id', async (t) => {

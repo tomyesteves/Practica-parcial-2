@@ -1,10 +1,11 @@
 import path from 'path'
 import sensible from "./plugins/sensible.js"
 import swagger from "./plugins/swagger.js"
-import schemas from "./plugins/schemas.js"
 import AutoLoad from "@fastify/autoload"
 import { fileURLToPath } from 'url'
 import { mensajesReemplazables } from "./errors/index.js"
+import cors from '@fastify/cors';
+
 import dotenv from "dotenv"
 dotenv.config();
 
@@ -19,7 +20,19 @@ export default async function (fastify, opts) {
 
   //MY CUSTOM PLUGINS
   fastify.register(swagger)
-  fastify.register(schemas) //Registramos los schemas
+  fastify.register(AutoLoad, {
+    dir: path.join(__dirname, 'plugins', 'schemas'),
+  });
+
+  fastify.register(cors, {
+    origin: [
+      'http://localhost:4200',
+      'localhost:4200',
+      'http://127.0.0.1:4200',
+      '127.0.0.1:4200'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  });
 
   //MY DECORATORS, funciones o datos que se agregan a la instancia para ampliar la funcionalidad.
   // Agregar metadatos globales a la instancia de Fastify

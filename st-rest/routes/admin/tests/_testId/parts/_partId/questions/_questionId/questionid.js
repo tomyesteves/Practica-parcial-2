@@ -6,7 +6,7 @@ export default async function (fastify, opts) {
   //GET a question
   const getIdRouteSchema = {
     summary: 'Get a question by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       200: {
         description: 'Ok.',
@@ -22,30 +22,24 @@ export default async function (fastify, opts) {
   fastify.get("/", {
     schema: getIdRouteSchema,
     handler: async function (request, reply) {
-      const resultado = await query(getQuestionsQuery({ byId: true, byPartId: true }), [request.params.questionId, request.params.partId]);
+      const resultado = await query(
+        'SELECT * from "questions" Q WHERE Q.id=$1 AND Q."partId"=$2',
+        [request.params.questionId, request.params.partId]
+      );
       if (resultado.rowCount == 0) {
         throw fastify.httpErrors.notFound();
       }
-      if (resultado.rowCount > 1) {
-        throw fastify.httpErrors.internalServerError("Duplicated id");
-      }
-      const res = resultado.rows[0];
-      return {
-        ...res,
-        _links: {
-          self: { href: fastify.getFullLink(request, `${request.raw.url}`) }
-        }
-      };
+      return resultado.rows[0];
     }
   })
 
   //DELETE a question by id
   const deleteRouteSchema = {
     summary: 'Delete a question by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       204: {
-        $ref: "generic204ResponseSchema"
+        $ref: "genericNoContentResponseSchema"
       }
     },
   }
@@ -53,20 +47,27 @@ export default async function (fastify, opts) {
   fastify.delete("/", {
     schema: deleteRouteSchema,
     handler: async function (request, reply) {
-      const resultado = await query("DELETE FROM \"questions\" WHERE id = $1", [request.params.questionId]);
-      reply.code(204);
+      const res = await query("DELETE FROM \"questions\" WHERE id = $1", [request.params.questionId]);
+      //TODO: Y si el id es erróneo? Deberíamos retornar 404
+      reply.code(204)
+      return;
     }
   })
 
   //UPDATE a question by id
   const putRouteSchema = {
     summary: 'Update a question by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     body: { $ref: "questionsPostSchema" },
     response: {
-      204: {
-        $ref: "generic204ResponseSchema"
-      }
+      200: {
+        description: 'Ok.',
+        content: {
+          "application/json": {
+            "schema": { $ref: 'questionResponseSchema' }
+          }
+        }
+      },
     },
   }
 
@@ -78,9 +79,8 @@ export default async function (fastify, opts) {
       if (id != body.id) {
         return reply.notAcceptable();
       }
-      await query("UPDATE \"questions\" SET description=$1, number=$2, \"isExample\"=$3 WHERE id=$4", [body.description, body.number, body.isExample, id]);
-      reply.code(204);
-      return;
+      const res = await query("UPDATE \"questions\" SET description=$1, number=$2, \"isExample\"=$3 WHERE id=$4 RETURNING *", [body.description, body.number, body.isExample, id]);
+      return res.rows[0];
     }
   })
 }

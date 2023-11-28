@@ -1,1 +1,8 @@
-<p>admin-grades-list works!</p>
+<h2 class="text-center">{{title}}</h2>
+<button type="button" class="btn btn-success btn-sm" (click)="this.getAdminService().redirectToForm()">Agregar
+    curso</button>
+<div class="justify-content-center align-items-center">
+    <ul class="list-group">
+        <app-admin-grades-list-item *ngFor="let grade of grades" [grade]="grade"></app-admin-grades-list-item>
+    </ul>
+</div>

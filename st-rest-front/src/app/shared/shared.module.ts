@@ -6,7 +6,6 @@ import { NavbarComponent } from './components/navbar/navbar.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { MainLayoutPageComponent } from './pages/main-layout-page/main-layout-page.component';
 
-
 @NgModule({
   declarations: [
     NavbarComponent,
@@ -16,6 +15,10 @@ import { MainLayoutPageComponent } from './pages/main-layout-page/main-layout-pa
   imports: [
     CommonModule,
     SharedRoutingModule
+  ],
+  exports: [
+    FooterComponent,
+    NavbarComponent
   ]
 })
 export class SharedModule { }

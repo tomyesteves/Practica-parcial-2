@@ -3,11 +3,12 @@ import { getPartsQuery } from "../../../../../../db/queries/admin/parts.js";
 
 export default async function (fastify, opts) {
 
+  //TODO: Falta schema para los params en todos los que llevan id
   //  /admin/tests/:id/parts/:partId
 
   const getIdRouteSchema = {
     summary: 'Get a part by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       200: {
         description: 'Ok.',
@@ -27,25 +28,16 @@ export default async function (fastify, opts) {
       if (resultado.rowCount == 0) {
         throw fastify.httpErrors.notFound();
       }
-      if (resultado.rowCount > 1) {
-        throw fastify.httpErrors.internalServerError("Duplicated id");
-      }
-      const res = resultado.rows[0];
-      return {
-        ...res,
-        _links: {
-          self: { href: fastify.getFullLink(request, `${request.raw.url}`) }
-        }
-      };
+      return resultado.rows[0];
     }
   })
   //DELETE a question by id
   const deleteRouteSchema = {
     summary: 'Delete a question by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     response: {
       204: {
-        $ref: "generic204ResponseSchema"
+        $ref: "genericNoContentResponseSchema"
       }
     },
   }
@@ -53,19 +45,21 @@ export default async function (fastify, opts) {
   fastify.delete("/", {
     schema: deleteRouteSchema,
     handler: async function (request, reply) {
-      const resultado = await query("DELETE FROM \"parts\" WHERE id = $1", [request.params.partId]);
+      const res = await query("DELETE FROM \"parts\" WHERE id = $1", [request.params.partId]);
+      if (res.rows.length) return reply.notFound("No id " + request.params.partId + " found.");
       reply.code(204);
+      return;
     }
   })
 
   //UPDATE a part by id
   const putRouteSchema = {
     summary: 'Update a part by id',
-    tags: ['administrator'],
+    tags: ['admin'],
     body: { $ref: "partsPostSchema" },
     response: {
-      204: {
-        $ref: "generic204ResponseSchema"
+      200: {
+        $ref: "genericNoContentResponseSchema"
       }
     },
   }
@@ -78,9 +72,9 @@ export default async function (fastify, opts) {
       if (id != body.id) {
         return reply.notAcceptable();
       }
-      await query("UPDATE \"parts\" SET name=$1, description=$2, \"exampleDescription\"=$3, \"timeLimit\"=$4 WHERE id=$5", [body.name, body.description, body.exampleDescription, body.timeLimit, id]);
-      reply.code(204);
-      return;
+      const res = await query('UPDATE "parts" SET name=$1, description=$2, "exampleDescription"=$3, "timeLimit"=$4 WHERE id=$5', [body.name, body.description, body.exampleDescription, body.timeLimit, id]);
+      return res.rows[0];
     }
   })
+
 }

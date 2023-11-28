@@ -14,13 +14,13 @@ test('Get all evaluations, OK', async (t) => {
         await cleanup.reset();
     })
 
-    t.equal(response.statusCode, 204, 'El código de respuesta es 204 (No Content)');
+    t.equal(response.statusCode, 200, 'El código de respuesta es 200');
     t.end();
-    });
+});
 
 test('Get ONE specific evaluation, OK', async (t) => {
     const app = await build(t)
-    
+
     const postPayload = {
         description: "test",
         institution: "test",
@@ -32,7 +32,7 @@ test('Get ONE specific evaluation, OK', async (t) => {
         method: 'POST',
         payload: postPayload
     });
-    
+
     const response = await app.inject({
         url: '/evaluators/evaluations/1',
         method: 'GET'
@@ -44,10 +44,10 @@ test('Get ONE specific evaluation, OK', async (t) => {
 
     t.equal(response.statusCode, 200, 'El código de respuesta es 200 en ambos casos (OK)');
     t.end();
-    });
+});
 test('Get ONE specific evaluation, not OK', async (t) => {
     const app = await build(t)
-    
+
     const postPayload = {
         description: "test",
         institution: "test",
@@ -59,7 +59,7 @@ test('Get ONE specific evaluation, not OK', async (t) => {
         method: 'POST',
         payload: postPayload
     });
-    
+
     const response = await app.inject({
         url: '/evaluators/evaluations/24',
         method: 'GET'
@@ -71,7 +71,7 @@ test('Get ONE specific evaluation, not OK', async (t) => {
 
     t.equal(response.statusCode, 404, 'El código de respuesta es 404 en ambos casos (NOT FOUND)');
     t.end();
-    });
+});
 
 test('Update an evaluation, OK', async (t) => {
     const app = await build(t);
@@ -109,7 +109,7 @@ test('Update an evaluation, OK', async (t) => {
     t.same(res.statusCode, 200, 'El código de respuesta es 200 (OK)');
     t.same(JSON.parse(res.body).statusId, 1, 'El statusId es el mismo');
     t.end();
-    });
+});
 
 
 test('Update an evaluation, not OK', async (t) => {
@@ -147,7 +147,7 @@ test('Update an evaluation, not OK', async (t) => {
 
     t.equal(res.statusCode, 400, 'El código de respuesta es 400 (Bad Request - Código distinto en body y params request)');
     t.end();
-    }
+}
 )
 
 test('Update an evaluation, not OK', async (t) => {
@@ -185,7 +185,7 @@ test('Update an evaluation, not OK', async (t) => {
 
     t.equal(res.statusCode, 404, 'El código de respuesta es 404 (Not found)');
     t.end();
-    });
+});
 test('Delete an evaluation, OK', async (t) => {
     const app = await build(t);
 
@@ -212,7 +212,7 @@ test('Delete an evaluation, OK', async (t) => {
 
     t.equal(res.statusCode, 204, 'El código de respuesta es 204 en ambos casos (NO CONTENT)');
     t.end();
-    });
+});
 
 test('Delete an evaluation, NOT OK', async (t) => {
     const app = await build(t);
@@ -240,4 +240,4 @@ test('Delete an evaluation, NOT OK', async (t) => {
 
     t.equal(res.statusCode, 404, 'El código de respuesta es 404 en ambos casos (NOT FOUND)');
     t.end();
-    });
+});

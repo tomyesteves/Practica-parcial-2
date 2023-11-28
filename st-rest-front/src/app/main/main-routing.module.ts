@@ -8,7 +8,8 @@ const routes: Routes = [
   { path: 'home', component: MainLayoutPageComponent, children: [{ path: '', component: HomeComponent }] },
   { path: 'aboutus', component: MainLayoutPageComponent, children: [{ path: '', component: AboutusComponent }] },
   {
-    path: 'evaluadores', loadChildren: () => import('./../admin/admin.module').then(m => m.AdminModule),
+    component: MainLayoutPageComponent,
+    path: 'admin', loadChildren: () => import('./../admin/admin.module').then(m => m.AdminModule),
   },
   { path: '', redirectTo: 'home', pathMatch: 'full' },
 ];

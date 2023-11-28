@@ -1,3 +1,5 @@
+import fp from 'fastify-plugin'
+
 const questionsPostSchema = {
   "$id": "questionsPostSchema",
   "type": 'object',
@@ -19,38 +21,20 @@ const questionResponseSchema = {
     "description": { "type": "string" },
     "isExample": { "type": "boolean" },
     "partId": { "type": "integer" },
-    "_links": {
-      "type": "object",
-      "properties": {
-        "self": { $ref: "genericLinkSchema" }
-      },
-      "required": ["self"]
-    },
   },
-  "required": ["id", "number", "description", "isExample", "partId", "_links"]
+  "required": ["id", "number", "description", "isExample", "partId"]
 }
 
 const questionsResponseSchema = {
   "$id": 'questionsResponseSchema',
-  "type": "object",
-  "properties": {
-    "_links": {
-      "type": "object",
-      "properties": {
-        "self": { $ref: "genericLinkSchema" }
-      },
-      "required": ["self"]
-    },
-    "_embedded": {
-      "type": "array",
-      "items": { $ref: 'questionResponseSchema' }
-    }
-  },
-  "required": ["_links", "_embedded"]
+  "type": "array",
+  "items": { $ref: 'questionResponseSchema' }
 }
 
-const questionsSchemas = {
-  questionResponseSchema, questionsResponseSchema, questionsPostSchema
-}
+export default fp(async (fastify) => {
 
-export default questionsSchemas;
+  fastify.addSchema(questionsPostSchema);
+  fastify.addSchema(questionResponseSchema);
+  fastify.addSchema(questionsResponseSchema);
+
+})

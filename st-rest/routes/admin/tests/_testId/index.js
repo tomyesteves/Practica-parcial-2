@@ -5,7 +5,7 @@ export default async function (fastify, opts) {
     //  /admin/tests/:testId/
     const getIdRouteSchema = {
         summary: 'Get a test by id',
-        tags: ['administrator'],
+        tags: ['admin'],
         response: {
             200: {
                 description: 'Ok.',
@@ -25,17 +25,7 @@ export default async function (fastify, opts) {
             if (resultado.rowCount == 0) {
                 throw fastify.httpErrors.notFound();
             }
-            if (resultado.rowCount > 1) {
-                throw fastify.httpErrors.internalServerError("Duplicated id");
-            }
-            const res = resultado.rows[0];
-            return {
-                ...res,
-                _links: {
-                    "self": { href: fastify.getFullLink(request, `${request.raw.url}`) },
-                    "parts": { href: fastify.getFullLink(request, `${request.raw.url}/parts`) }
-                }
-            };
+            return resultado.rows[0];
         }
     })
 }

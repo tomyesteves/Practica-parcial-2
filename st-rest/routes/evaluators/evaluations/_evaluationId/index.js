@@ -4,7 +4,7 @@ import { getEvaluationsQuery } from "../../../../db/queries/evaluators/evaluatio
 export default async function (fastify, opts) {
     const getIdRouteSchema = {
         summary: 'Get an evaluation by id',
-        tags: ['evaluator'],
+        tags: ['evaluators'],
         response: {
             200: {
                 description: 'Ok.',
@@ -19,34 +19,20 @@ export default async function (fastify, opts) {
 
     // GET /evaluators/evaluations/:evaluationId/
     fastify.get("/", {
-        onRequest: (request, reply, done) => {
-            console.log("Request aprobada en GET /evaluators/evaluations/:evaluationId/, sustituir por función de validación de token");
-            done();
-        },
         schema: getIdRouteSchema,
         handler: async function (request, reply) {
             const id = request.params.evaluationId;
-            const resultado = await query(getEvaluationsQuery({ byId: true }), [id]);
+            const resultado = await query("SELECT * FROM evaluations e WHERE e.id=$1", [id]);
             if (resultado.rowCount == 0) {
                 throw fastify.httpErrors.notFound();
             }
-            if (resultado.rowCount > 1) {
-                throw fastify.httpErrors.internalServerError("Duplicated id");
-            }
-            const res = resultado.rows[0];
-            reply.code(200);
-            return {
-                ...res,
-                _links: {
-                    "self": { href: fastify.getFullLink(request, `${request.raw.url}`) }
-                }
-            };
+            return resultado.rows[0];
         }
     })
 
     const putRouteSchema = {
         summary: 'Update an evaluation',
-        tags: ['evaluator'],
+        tags: ['evaluators'],
         body: { $ref: "evaluationPutSchema" },
         response: {
             200: {
@@ -79,10 +65,6 @@ export default async function (fastify, opts) {
     fastify.put('/', {
         // PUT /evaluators/evaluations/:evaluationId/
         schema: putRouteSchema,
-        onRequest: (request, reply, done) => {
-            console.log("Request aprobada en PUT /evaluators/evaluations/:evaluationId/, sustituir por función de validación de token");
-            done();
-        },
         handler: async (request, reply) => {
             const id = request.body.id;
             const description = request.body.description;
@@ -101,25 +83,19 @@ export default async function (fastify, opts) {
                 reply.code(404);
                 return;
             }
-            reply.code(200);
-            return {
-                ...res,
-                _links: {
-                    "self": { href: fastify.getFullLink(request, `${request.raw.url}`) }
-                }
-            };
+            return res;
         }
     });
 
     const deleteRouteSchema = {
         summary: 'Delete an evaluation',
-        tags: ['evaluator'],
+        tags: ['evaluators'],
         response: {
             204: {
                 description: 'Ok. Successful evaluation delete.',
                 content: {
                     "application/json": {
-                        "schema": { $ref: "generic204ResponseSchema" }
+                        "schema": { $ref: "genericNoContentResponseSchema" }
                     }
                 }
             },
@@ -136,7 +112,7 @@ export default async function (fastify, opts) {
 
     fastify.delete('/', {
         onRequest: (request, reply, done) => {
-            console.log("Request aprobada en DELETE /evaluators/evaluations/:evaluationId/, sustituir por función de validación de token");
+            //TODO: console.log("Request aprobada en DELETE /evaluators/evaluations/:evaluationId/, sustituir por función de validación de token");
             done();
         },
         schema: deleteRouteSchema,
@@ -144,6 +120,7 @@ export default async function (fastify, opts) {
             const id = request.params.evaluationId;
             const result = await query("DELETE FROM evaluations WHERE id = $1", [id]);
             if (result.rowCount === 0) {
+                //TODO: Retornar notFound
                 reply.code(404);
                 return;
             }

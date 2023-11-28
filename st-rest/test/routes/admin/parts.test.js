@@ -11,8 +11,6 @@ test('get all parts', async (t) => {
   const payload = JSON.parse(response.payload);
 
   t.equal(response.statusCode, 200, 'El código de respuesta es 200 (OK)');
-  // No tiene mucho sentido chequear por _links, ya que los esquemas deberían detectarlo.
-  t.ok(payload.hasOwnProperty('_links'), 'La propiedad "_links" existe en la respuesta');
 });
 
 test('get part by id', async (t) => {
@@ -23,7 +21,6 @@ test('get part by id', async (t) => {
   });
   const payload = JSON.parse(response.payload);
   t.equal(response.statusCode, 200, "El código de respuesta es 200 (OK)");
-  t.ok(payload.hasOwnProperty('_links'), 'La propiedad "_links" existe en la respuesta');
 });
 
 test('POST /admin/parts', async (t) => {
@@ -56,7 +53,7 @@ test('PUT /admin/parts/:id', async (t) => {
     url: '/admin/tests/1/parts/8',
     payload
   });
-  t.equal(response.statusCode, 204, "El código de respuesta es 204 (No Content)(PUT)");
+  t.equal(response.statusCode, 200, "El código de respuesta es 200");
 });
 
 test('DELETE /admin/parts/:id', async (t) => {

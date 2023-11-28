@@ -6,5 +6,5 @@ import { Component } from '@angular/core';
   styleUrls: ['./admin-grades-list-view.component.css']
 })
 export class AdminGradesListViewComponent {
-
+  title: string = "Lista de cursos";
 }
