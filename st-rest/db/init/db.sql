@@ -1,0 +1,1728 @@
+--- DROPS
+DROP TABLE IF EXISTS public."statuses" CASCADE;
+DROP TABLE IF EXISTS public."users" CASCADE;
+DROP TABLE IF EXISTS public."tests" CASCADE;
+DROP TABLE IF EXISTS public."grades" CASCADE;
+DROP TABLE IF EXISTS public."parts" CASCADE;
+DROP TABLE IF EXISTS public."questions" CASCADE;
+DROP TABLE IF EXISTS public."options" CASCADE;
+DROP TABLE IF EXISTS public."evaluations" CASCADE;
+DROP TABLE IF EXISTS public."evaluation_tests" CASCADE;
+DROP TABLE IF EXISTS public."evaluation_grades" CASCADE;
+DROP TABLE IF EXISTS public."evaluation_test_parts" CASCADE;
+DROP TABLE IF EXISTS public."student_evaluations" CASCADE;
+DROP TABLE IF EXISTS public."student_evaluation_tests" CASCADE;
+DROP TABLE IF EXISTS public."student_evaluation_test_parts" CASCADE;
+DROP TABLE IF EXISTS public."student_responses" CASCADE;
+DROP TABLE IF EXISTS public."student_response_options" CASCADE;
+
+--- ADMIN
+CREATE TABLE IF NOT EXISTS public."statuses" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL UNIQUE,
+    "description" TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public."users"
+(
+    "id" SERIAL PRIMARY KEY,
+    "email" TEXT NOT NULL UNIQUE,
+    "username" character varying(30) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS public."grades" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS public."tests" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL UNIQUE,
+    "initials" TEXT NOT NULL UNIQUE,
+    "description" TEXT NOT NULL,
+    "isActive" boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS public."parts" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "exampleDescription" TEXT NOT NULL,
+    "timeLimit" INTEGER NOT NULL,
+    "testId" INTEGER NOT NULL,
+    CONSTRAINT "parts_testId_fk" FOREIGN KEY ("testId") REFERENCES "tests" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."questions" (
+    "id" SERIAL PRIMARY KEY,
+    "isExample" BOOLEAN NOT NULL,
+    "description" TEXT NOT NULL,
+    "number" INTEGER NOT NULL,
+    "partId" INTEGER NOT NULL,
+    CONSTRAINT "question_number_number_partId_uk" UNIQUE ("number", "partId"),
+    CONSTRAINT "questions_partId_fk" FOREIGN KEY ("partId") REFERENCES "parts" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."options" (
+    "id" SERIAL PRIMARY KEY,
+    "text" TEXT NOT NULL,
+    "correct" BOOLEAN NOT NULL DEFAULT FALSE,
+    "questionId" INTEGER NOT NULL,
+    CONSTRAINT "options_questionId_fk" FOREIGN KEY ("questionId") REFERENCES "questions" ("id")
+);
+
+--- EVALUATIONS 
+CREATE TABLE IF NOT EXISTS public."evaluations" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "description" TEXT NOT NULL,
+    "institution" TEXT NOT NULL,
+    "date" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "secretToken" TEXT NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    CONSTRAINT "evaluations_statusId_fk" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id"),
+    CONSTRAINT "evaluations_userId_fk" FOREIGN KEY ("userId") REFERENCES "users" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."evaluation_tests" (
+    "id" SERIAL PRIMARY KEY,
+    "startDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "finishDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "evaluationId" INTEGER NOT NULL,
+    "testId" INTEGER NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    CONSTRAINT "evaluation_tests_evaluationId_testId_uk" UNIQUE ("testId", "statusId"),
+    CONSTRAINT "evaluations_evaluationId_fk" FOREIGN KEY ("evaluationId") REFERENCES "evaluations" ("id"),
+    CONSTRAINT "evaluations_testId_fk" FOREIGN KEY ("testId") REFERENCES "tests" ("id"),
+    CONSTRAINT "evaluations_statusId_fk" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."evaluation_grades" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NULL,
+    "gradeId" INTEGER NOT NULL,
+    "evaluationId" INTEGER NOT NULL,
+    CONSTRAINT "evaluation_grades_gradeId_evaluationId_uk" UNIQUE ("gradeId", "evaluationId"),
+    CONSTRAINT "evaluation_grades_fk_gradeId" FOREIGN KEY ("gradeId") REFERENCES "grades" ("id"),
+    CONSTRAINT "evaluation_grades_fk_evaluationId" FOREIGN KEY ("evaluationId") REFERENCES "evaluations" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."evaluation_test_parts" (
+    "id" SERIAL PRIMARY KEY,
+    "timeLimit" INTEGER NOT NULL,
+    "startDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "finishDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    "partId" INTEGER NOT NULL,
+    "evaluationTestId" INTEGER NOT NULL,
+    CONSTRAINT "evaluation_test_parts_partId_evaluationTestId_uk" UNIQUE ("partId", "evaluationTestId"),
+    CONSTRAINT "evaluation_test_parts_statusId_fk" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id"),
+    CONSTRAINT "evaluation_test_parts_partId_fk" FOREIGN KEY ("partId") REFERENCES "parts" ("id"),
+    CONSTRAINT "evaluation_test_parts_evaluationTestId_fk" FOREIGN KEY ("evaluationTestId") REFERENCES "evaluation_tests" ("id")
+);
+
+--- STUDENT
+CREATE TABLE IF NOT EXISTS public."student_evaluations" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
+    "birthDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    "gradeId" INTEGER NOT NULL,
+    "evaluationId" INTEGER NOT NULL,
+    CONSTRAINT "student_evaluations_statusId_fk" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id"),
+    CONSTRAINT "student_evaluations_gradeId_fk" FOREIGN KEY ("gradeId") REFERENCES "grades" ("id"),
+    CONSTRAINT "student_evaluations_evaluationId_fk" FOREIGN KEY ("evaluationId") REFERENCES "evaluations" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."student_evaluation_tests" (
+    "id" SERIAL PRIMARY KEY,
+    "startDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "finishDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    "evaluationTestId" INTEGER NOT NULL,
+    "studentEvaluationId" INTEGER NOT NULL,
+    CONSTRAINT "student_evaluation_tests_evaluationTestId_studentEvalId_uk" UNIQUE ("evaluationTestId", "studentEvaluationId"),
+    CONSTRAINT "student_evaluation_tests_statusId" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id"),
+    CONSTRAINT "student_evaluation_tests_evaluationTestId" FOREIGN KEY ("evaluationTestId") REFERENCES "evaluation_tests" ("id"),
+    CONSTRAINT "student_evaluation_tests_studentEvaluationId" FOREIGN KEY ("studentEvaluationId") REFERENCES "student_evaluations" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."student_evaluation_test_parts" (
+    "id" SERIAL PRIMARY KEY,
+    "startDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "finishDate" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "directScore" INTEGER NOT NULL,
+    "percentileScore" INTEGER NOT NULL,
+    "R" INTEGER NOT NULL,
+    "E" INTEGER NOT NULL,
+    "O" INTEGER NOT NULL,
+    "correctedPercentileScore" INTEGER NOT NULL,
+    "statusId" INTEGER NOT NULL,
+    "studentEvaluationTestId" INTEGER NOT NULL,
+    "evaluationTestPartId" INTEGER NOT NULL,
+    CONSTRAINT "student_evaluation_test_parts_studenEvalTestId_evalTestParId_uk" UNIQUE ("studentEvaluationTestId", "evaluationTestPartId"),
+    CONSTRAINT "student_evaluation_test_parts_statusId" FOREIGN KEY ("statusId") REFERENCES "statuses" ("id"),
+    CONSTRAINT "student_evaluation_test_parts_studentEvaluationTestId" FOREIGN KEY ("studentEvaluationTestId") REFERENCES "student_evaluation_tests" ("id"),
+    CONSTRAINT "student_evaluation_test_parts_evaluationTestPartId" FOREIGN KEY ("evaluationTestPartId") REFERENCES "evaluation_test_parts" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."student_responses" (
+    "id" SERIAL PRIMARY KEY,
+    "questionId" INTEGER NOT NULL,
+    "studentEvaluationTestPartId" INTEGER,
+    CONSTRAINT "student_responses_questionId_studentEvaluationTestPartId_uk" UNIQUE ("questionId", "studentEvaluationTestPartId"),
+    CONSTRAINT "student_responses_questionId" FOREIGN KEY ("questionId") REFERENCES "questions" ("id"),
+    CONSTRAINT "student_responses_studentEvaluationTestPartId" FOREIGN KEY ("studentEvaluationTestPartId") REFERENCES "student_evaluation_test_parts" ("id")
+);
+
+CREATE TABLE IF NOT EXISTS public."student_response_options" (
+    "studentResponseId" INTEGER NOT NULL,
+    "optionId" INTEGER NOT NULL,
+    CONSTRAINT "student_response_options_PK" PRIMARY KEY ("studentResponseId", "optionId"),
+    CONSTRAINT "student_response_options_studentResponseId" FOREIGN KEY ("studentResponseId") REFERENCES "student_responses" ("id"),
+    CONSTRAINT "student_response_options_optionId" FOREIGN KEY ("optionId") REFERENCES "options" ("id")
+);
+
+--- INSERCIONES -----
+
+--- STATUSES
+INSERT INTO public."statuses" VALUES (0, 'Planned', 'Planeado');
+INSERT INTO public."statuses" VALUES (1, 'Waiting', 'Esperando');
+INSERT INTO public."statuses" VALUES (2, 'Enabled', 'Habilitado');
+INSERT INTO public."statuses" VALUES (3, 'Finished', 'Finalizado');
+
+--- GRADES
+INSERT INTO public."grades" VALUES (1, '1°');
+INSERT INTO public."grades" VALUES (2, '2°');
+INSERT INTO public."grades" VALUES (3, '3°');
+INSERT INTO public."grades" VALUES (4, '4°');
+INSERT INTO public."grades" VALUES (5, '5°');
+INSERT INTO public."grades" VALUES (6, '6°');
+INSERT INTO public."grades" VALUES (7, 'Otro');
+
+--- TESTS
+INSERT INTO public."tests" VALUES (1, 'Test de Eficacia de Cálculo Aritmético', 'TECA', 'Una descripción', false);
+INSERT INTO public."tests" VALUES (2, 'Test de Eficacia Lectora', 'TECLE', 'Una descripción', false);
+INSERT INTO public."tests" VALUES (3, 'Test de Eficacia Ortográfica', 'TEO', 'Una descripción', false);
+
+--- PARTS
+INSERT INTO public."parts" VALUES (1, 'Única', 'Parte única del TECLE', 'Descripción de ejemplo', 5, 2);
+INSERT INTO public."parts" VALUES (2, 'Única', 'Parte única del TEO', 'Descripción de ejemplo', 5, 3);
+INSERT INTO public."parts" VALUES (3, 'Sumas', 'Parte de Sumas del TECA', 'Descripción de ejemplo', 3, 1);
+INSERT INTO public."parts" VALUES (4, 'Restas', 'Parte de Restas del TECA', 'Descripción de ejemplo', 3, 1);
+INSERT INTO public."parts" VALUES (5, 'Multiplicaciones', 'Parte de Multiplicaciones del TECA', 'Descripción de ejemplo', 5, 1);
+
+--- QUESTIONS
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (1, 0, 'Tu pelota es de color ...', true, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (2, 1, 'Ana puso la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (3, 2, 'Se rompió el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (4, 3, 'Le ocultaba la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (5, 4, 'Mi amigo viene en ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (6, 5, 'El tren dio un ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (7, 6, 'Han atrapado un ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (8, 7, 'Quiso montar en ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (9, 8, 'Laura elige un ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (10, 9, 'Me visita cada dos ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (11, 10, 'Está viendo la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (12, 11, 'Lucía no ahorra ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (13, 12, 'Aquí se oye al ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (14, 13, 'Juan sale de su ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (15, 14, 'El coche está en ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (16, 15, 'Anoche se comió el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (17, 16, 'Su padre trabaja en el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (18, 17, 'El tenor nos dejó ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (19, 18, 'Entre las flores hay un ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (20, 19, 'Hemos viajado por todo el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (21, 20, 'Allí se acoge a muchas ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (22, 21, 'Le gusta hablar con sus ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (23, 22, 'Tres satélites giraban ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (24, 23, 'La larga sequía afectó al ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (25, 24, 'Todas las caretas eran ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (26, 25, 'Debido a su lesión lleva ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (27, 26, 'Su hermano estudia en la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (28, 27, 'Aceleró hasta el límite de ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (29, 28, 'La serpiente encantaba con su ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (30, 29, 'Aquella conclusión no estaba ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (31, 30, 'Ese comisario encarceló a los ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (32, 31, 'La cuñada de Sara no pudo llegar a ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (33, 32, 'Ella afirma que no la dejará en toda su ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (34, 33, 'Que tu barco nuevo zarpe mañana es ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (35, 34, 'Luis quiere dar de comer a todos los ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (36, 35, 'Dio un concierto en el teatro con su ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (37, 36, 'Para hacer el viaje tuvo que pedir ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (38, 37, 'Este niño pide más ayuda para hacer el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (39, 38, 'Juana nos relata fábulas con mucha ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (40, 39, 'Tu coche es tan viejo que se le caen las ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (41, 40, 'En la caja rota mi abuelo puso tu juego de ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (42, 41, 'Para señalar el sur debes usar una buena ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (43, 42, 'Todos los días oigo las noticias que da la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (44, 43, 'Esa niña pequeña no dejó de llorar en toda la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (45, 44, 'No ha comprado el libro y tiene que usar ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (46, 45, 'Esas muchachas se van a resfriar por andar ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (47, 46, 'Con el lápiz que me has traido no he podido ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (48, 47, 'Si no tienes cuidado y fallas asume las ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (49, 48, 'Olvidó conectar el cable antes de llamar por ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (50, 49, 'Tu necesitas trabajar mucho para tener mas ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (51, 50, 'Para coser la camisa cogió la aguja', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (52, 51, 'Si te despiertas temprano mañana podrás venir con ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (53, 52, 'En el nuevo hóspital de Félix le curaron muy rápido las ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (54, 53, 'El martes había un equipo de cirujanos operando en el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (55, 54, 'Durante las vacaciones', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (56, 55, 'Las sillas que has dejado por la mañana no he podido ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (57, 56, 'El domingo por la tarde no podremos a salir a pescar con mi ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (58, 57, 'Los cuatro compañeros van a la sierra porque les gusta la ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (59, 58, 'Era necesario para su salud tratar adecuadamente su problema de ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (60, 59, 'Antes de que muriera le prometió firmemente que nunca dejaría de ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (61, 60, 'Tu padre trabajaba como carpintero antes de que su jefe lo dejara ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (62, 61, 'Ten mucho cuidado para que la máquina no caiga al agua', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (63, 62, 'Toma el lápiz y el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (64, 63, 'El capitán mandó a subir el ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (65, 64, 'Por enganchar mal el remolque quedaron los bordes ...', false, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (66, 65, 'El barco navega por el ...', true, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (67, 66, 'El caballo tenía la pata ...', true, 1);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (68, 0, 'hoy', true, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (69, 1, 'natación', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (70, 2, 'invitar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (71, 3, 'colegio', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (72, 4, 'trabajo', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (73, 5, 'selva', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (74, 6, 'entonces', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (75, 7, 'problema', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (76, 8, 'sábado', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (77, 9, 'fácil', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (78, 10, 'verano', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (79, 11, 'febrero', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (80, 12, 'vestido', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (81, 13, 'bañar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (82, 14, 'decir', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (83, 15, 'llegar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (84, 16, 'situación', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (85, 17, 'vacaciones', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (86, 18, 'felicitar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (87, 19, 'página', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (88, 20, 'libro', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (89, 21, 'barrio', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (90, 22, 'cenar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (91, 23, 'resolver', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (92, 24, 'verdura', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (93, 25, 'edificio', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (94, 26, 'educación', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (95, 27, 'primavera', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (96, 28, 'haber', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (97, 29, 'arriba', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (98, 30, 'ejemplo', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (99, 31, 'silencio', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (100, 32, 'dirección', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (101, 33, 'abrazar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (102, 34, 'voz', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (103, 35, 'yo', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (104, 36, 'levantar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (105, 37, 'ventana', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (106, 38, 'fábrica', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (107, 39, 'playa', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (108, 40, 'ahora', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (109, 41, 'aburrido', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (110, 42, 'sombra', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (111, 43, 'noticia', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (112, 44, 'bien', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (113, 45, 'crecer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (114, 46, 'gracias', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (115, 47, 'visitar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (116, 48, 'volver', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (117, 49, 'hombre', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (118, 50, 'libre', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (119, 51, 'nombre', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (120, 52, 'vecino', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (121, 53, 'precioso', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (122, 54, 'emoción', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (123, 55, 'helado', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (124, 56, 'bizcocho', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (125, 57, 'mayor', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (126, 58, 'quince', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (127, 59, 'aparecer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (128, 60, 'solución', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (129, 61, 'hojas', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (130, 62, 'almacén', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (131, 63, 'bosque', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (132, 64, 'amanecer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (133, 65, 'cambiar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (134, 66, 'abril', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (135, 67, 'árbol', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (136, 68, 'bueno', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (137, 69, 'vaso', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (138, 70, 'once', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (139, 71, 'imaginar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (140, 72, 'humo', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (141, 73, 'humano', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (142, 74, 'blanco', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (143, 75, 'agradecer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (144, 76, 'cine', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (145, 77, 'canción', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (146, 78, 'ciudad', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (147, 79, 'atención', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (148, 80, 'cocinar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (149, 81, 'favorito', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (150, 82, 'hallar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (151, 83, 'también', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (152, 84, 'verbo', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (153, 85, 'energía', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (154, 86, 'llover', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (155, 87, 'amable', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (156, 88, 'vida', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (157, 89, 'abierto', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (158, 90, 'ayer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (159, 91, 'llorar', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (160, 92, 'conocimiento', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (161, 93, 'mover', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (162, 94, 'conocer', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (163, 95, 'nueve', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (164, 96, 'receta', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (165, 97, 'abeja', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (166, 98, 'ejercicio', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (167, 99, 'varios', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (168, 100, 'nube', false, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (169, 101, 'beso', true, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (170, 102, 'ya', true, 2);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (171, 0, '1+1', true, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (172, 1, '2+1', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (173, 2, '1+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (174, 3, '3+3', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (175, 4, '5+1', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (176, 5, '4+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (177, 6, '3+2', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (178, 7, '4+1', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (179, 8, '5+5', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (180, 9, '2+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (181, 10, '1+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (182, 11, '0+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (183, 12, '4+5', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (184, 13, '3+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (185, 14, '2+5', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (186, 15, '2+10', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (187, 16, '6+6', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (188, 17, '1+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (189, 18, '7+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (190, 19, '2+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (191, 20, '6+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (192, 21, '9+2', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (193, 22, '3+6', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (194, 23, '4+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (195, 24, '3+5', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (196, 25, '8+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (197, 26, '2+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (198, 27, '6+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (199, 28, '9+6', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (200, 29, '5+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (201, 30, '2+6', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (202, 31, '4+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (203, 32, '3+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (204, 33, '4+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (205, 34, '8+12', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (206, 35, '6+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (207, 36, '3+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (208, 37, '5+12', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (209, 38, '7+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (210, 39, '6+5', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (211, 40, '3+11', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (212, 41, '9+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (213, 42, '5+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (214, 43, '11+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (215, 44, '3+15', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (216, 45, '6+11', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (217, 46, '9+10', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (218, 47, '7+8', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (219, 48, '4+13', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (220, 49, '12+6', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (221, 50, '7+11', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (222, 51, '8+9', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (223, 52, '4+15', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (224, 53, '5+11', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (225, 54, '7+12', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (226, 55, '3+15', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (227, 56, '13+7', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (228, 57, '9+11', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (229, 58, '12+4', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (230, 59, '2+17', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (231, 60, '6+14', false, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (232, 61, '2+1', true, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (233, 62, '2+2', true, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (234, 63, '3+1', true, 3);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (235, 0, '1-1', true, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (236, 1, '4-1', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (237, 2, '4-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (238, 3, '5-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (239, 4, '4-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (240, 5, '2-1', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (241, 6, '8-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (242, 7, '6-1', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (243, 8, '7-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (244, 9, '8-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (245, 10, '7-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (246, 11, '10-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (247, 12, '10-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (248, 13, '9-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (249, 14, '6-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (250, 15, '8-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (251, 16, '10-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (252, 17, '8-0', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (253, 18, '8-7', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (254, 19, '9-7', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (255, 20, '8-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (256, 21, '6-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (257, 22, '8-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (258, 23, '10-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (259, 24, '7-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (260, 25, '6-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (261, 26, '10-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (262, 27, '7-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (263, 28, '9-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (264, 29, '12-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (265, 30, '10-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (266, 31, '9-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (267, 32, '11-2', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (268, 33, '16-8', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (269, 34, '9-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (270, 35, '12-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (271, 36, '11-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (272, 37, '12-4', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (273, 38, '9-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (274, 39, '18-10', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (275, 40, '12-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (276, 41, '14-7', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (277, 42, '17-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (278, 43, '13-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (279, 44, '15-10', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (280, 45, '12-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (281, 46, '14-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (282, 47, '12-8', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (283, 48, '11-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (284, 49, '15-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (285, 50, '18-13', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (286, 51, '17-10', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (287, 52, '12-3', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (288, 53, '18-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (289, 54, '17-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (290, 55, '12-7', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (291, 56, '14-5', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (292, 57, '13-7', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (293, 58, '16-9', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (294, 59, '15-8', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (295, 60, '14-6', false, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (296, 61, '2-1', true, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (297, 62, '3-2', true, 4);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (298, 0, '1x1', true, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (299, 1, '1x5', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (300, 2, '2x3', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (301, 3, '5x2', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (302, 4, '2x1', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (303, 5, '4x2', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (304, 6, '5x5', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (305, 7, '3x3', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (306, 8, '2x2', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (307, 9, '3x4', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (308, 10, '2x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (309, 11, '3x5', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (310, 12, '10x5', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (311, 13, '4x5', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (312, 14, '3x8', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (313, 15, '4x4', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (314, 16, '5x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (315, 17, '9x1', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (316, 18, '7x2', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (317, 19, '6x3', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (318, 20, '10x3', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (319, 21, '4x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (320, 22, '5x7', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (321, 23, '4x6', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (322, 24, '6x6', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (323, 25, '5x8', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (324, 26, '8x2', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (325, 27, '7x3', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (326, 28, '5x6', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (327, 29, '3x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (328, 30, '8x4', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (329, 31, '6x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (330, 32, '4x8', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (331, 33, '9x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (332, 34, '4x7', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (333, 35, '6x7', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (334, 36, '7x7', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (335, 37, '8x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (336, 38, '7x8', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (337, 39, '8x8', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (338, 40, '7x9', false, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (339, 41, '2x1', true, 5);
+INSERT INTO public."questions"("id","number","description","isExample","partId") VALUES (340, 42, '3x2', true, 5);
+
+--- OPTIONS
+
+INSERT INTO public.options VALUES (1, 'rogo', false, 1);
+INSERT INTO public.options VALUES (2, 'rojo', false, 1);
+INSERT INTO public.options VALUES (3, 'robo', false, 1);
+INSERT INTO public.options VALUES (5, 'mella', false, 2);
+INSERT INTO public.options VALUES (7, 'mefa', false, 2);
+INSERT INTO public.options VALUES (8, 'meva', false, 2);
+INSERT INTO public.options VALUES (9, 'carfón', false, 3);
+INSERT INTO public.options VALUES (10, 'cartas', false, 3);
+INSERT INTO public.options VALUES (12, 'carpón', false, 3);
+INSERT INTO public.options VALUES (13, 'verlad', false, 4);
+INSERT INTO public.options VALUES (14, 'vertad', false, 4);
+INSERT INTO public.options VALUES (15, 'vendar', false, 4);
+INSERT INTO public.options VALUES (17, 'bicho', false, 5);
+INSERT INTO public.options VALUES (18, 'bini', false, 5);
+INSERT INTO public.options VALUES (19, 'bidi', false, 5);
+INSERT INTO public.options VALUES (21, 'flenazo', false, 6);
+INSERT INTO public.options VALUES (22, 'fremazo', false, 6);
+INSERT INTO public.options VALUES (24, 'flechazo', false, 6);
+INSERT INTO public.options VALUES (25, 'caslor', false, 7);
+INSERT INTO public.options VALUES (26, 'cantos', false, 7);
+INSERT INTO public.options VALUES (27, 'caspor', false, 7);
+INSERT INTO public.options VALUES (30, 'camillo', false, 8);
+INSERT INTO public.options VALUES (31, 'canello', false, 8);
+INSERT INTO public.options VALUES (32, 'camella', false, 8);
+INSERT INTO public.options VALUES (33, 'trípartito', false, 9);
+INSERT INTO public.options VALUES (34, 'trificlo', false, 9);
+INSERT INTO public.options VALUES (36, 'triviclo', false, 9);
+INSERT INTO public.options VALUES (37, 'deas', false, 10);
+INSERT INTO public.options VALUES (39, 'diga', false, 10);
+INSERT INTO public.options VALUES (40, 'dúas', false, 10);
+INSERT INTO public.options VALUES (41, 'tetevisión', false, 11);
+INSERT INTO public.options VALUES (42, 'teléfono', false, 11);
+INSERT INTO public.options VALUES (44, 'terevisión', false, 11);
+INSERT INTO public.options VALUES (45, 'decorado', false, 12);
+INSERT INTO public.options VALUES (46, 'debasiado', false, 12);
+INSERT INTO public.options VALUES (47, 'demaniado', false, 12);
+INSERT INTO public.options VALUES (49, 'trompepista', false, 13);
+INSERT INTO public.options VALUES (50, 'tropezaba', false, 13);
+INSERT INTO public.options VALUES (51, 'trompefista', false, 13);
+INSERT INTO public.options VALUES (53, 'halitación', false, 14);
+INSERT INTO public.options VALUES (55, 'habitafión', false, 14);
+INSERT INTO public.options VALUES (56, 'habitaron', false, 14);
+INSERT INTO public.options VALUES (58, 'movimienlo', false, 15);
+INSERT INTO public.options VALUES (59, 'mortadela', false, 15);
+INSERT INTO public.options VALUES (60, 'movibiento', false, 15);
+INSERT INTO public.options VALUES (61, 'tarro', false, 16);
+INSERT INTO public.options VALUES (62, 'tumón', false, 16);
+INSERT INTO public.options VALUES (64, 'turón', false, 16);
+INSERT INTO public.options VALUES (65, 'puebro', false, 17);
+INSERT INTO public.options VALUES (66, 'pueglo', false, 17);
+INSERT INTO public.options VALUES (68, 'puedo', false, 17);
+INSERT INTO public.options VALUES (69, 'desfilados', false, 18);
+INSERT INTO public.options VALUES (71, 'defraubados', false, 18);
+INSERT INTO public.options VALUES (72, 'deflaudados', false, 18);
+INSERT INTO public.options VALUES (73, 'tudipán', false, 19);
+INSERT INTO public.options VALUES (74, 'tufipán', false, 19);
+INSERT INTO public.options VALUES (75, 'tutora', false, 19);
+INSERT INTO public.options VALUES (77, 'mumbo', false, 20);
+INSERT INTO public.options VALUES (79, 'mudo', false, 20);
+INSERT INTO public.options VALUES (80, 'munto', false, 20);
+INSERT INTO public.options VALUES (82, 'perchonas', false, 21);
+INSERT INTO public.options VALUES (83, 'pernonas', false, 21);
+INSERT INTO public.options VALUES (84, 'pértigas', false, 21);
+INSERT INTO public.options VALUES (85, 'amistad', false, 22);
+INSERT INTO public.options VALUES (87, 'amibos', false, 22);
+INSERT INTO public.options VALUES (88, 'amipos', false, 22);
+INSERT INTO public.options VALUES (89, 'alrebedor', false, 23);
+INSERT INTO public.options VALUES (90, 'alcachofa', false, 23);
+INSERT INTO public.options VALUES (92, 'alsededor', false, 23);
+INSERT INTO public.options VALUES (93, 'vinedo', false, 24);
+INSERT INTO public.options VALUES (94, 'villedo', false, 24);
+INSERT INTO public.options VALUES (95, 'violeta', false, 24);
+INSERT INTO public.options VALUES (97, 'dificíles', false, 25);
+INSERT INTO public.options VALUES (98, 'diferenles', false, 25);
+INSERT INTO public.options VALUES (99, 'dicerentes', false, 25);
+INSERT INTO public.options VALUES (101, 'rotillera', false, 26);
+INSERT INTO public.options VALUES (102, 'robillera', false, 26);
+INSERT INTO public.options VALUES (104, 'rodapiés', false, 26);
+INSERT INTO public.options VALUES (106, 'unidersidad', false, 27);
+INSERT INTO public.options VALUES (107, 'unipersonal', false, 27);
+INSERT INTO public.options VALUES (108, 'universilad', false, 27);
+INSERT INTO public.options VALUES (109, 'vellosidad', false, 28);
+INSERT INTO public.options VALUES (110, 'verocidad', false, 28);
+INSERT INTO public.options VALUES (112, 'veloridad', false, 28);
+INSERT INTO public.options VALUES (113, 'migada', false, 29);
+INSERT INTO public.options VALUES (115, 'ministro', false, 29);
+INSERT INTO public.options VALUES (116, 'micada', false, 29);
+INSERT INTO public.options VALUES (117, 'razosada', false, 30);
+INSERT INTO public.options VALUES (118, 'ratonera', false, 30);
+INSERT INTO public.options VALUES (120, 'razomada', false, 30);
+INSERT INTO public.options VALUES (121, 'pistonear', false, 31);
+INSERT INTO public.options VALUES (122, 'pistoreros', false, 31);
+INSERT INTO public.options VALUES (123, 'pistoteros', false, 31);
+INSERT INTO public.options VALUES (125, 'tiembo', false, 32);
+INSERT INTO public.options VALUES (126, 'tiesto', false, 32);
+INSERT INTO public.options VALUES (127, 'tiespo', false, 32);
+INSERT INTO public.options VALUES (130, 'vino', false, 33);
+INSERT INTO public.options VALUES (131, 'vila', false, 33);
+INSERT INTO public.options VALUES (132, 'vira', false, 33);
+INSERT INTO public.options VALUES (133, 'imporible', false, 34);
+INSERT INTO public.options VALUES (135, 'imbosible', false, 34);
+INSERT INTO public.options VALUES (136, 'impureza', false, 34);
+INSERT INTO public.options VALUES (137, 'animarles', false, 35);
+INSERT INTO public.options VALUES (138, 'animates', false, 35);
+INSERT INTO public.options VALUES (140, 'alimales', false, 35);
+INSERT INTO public.options VALUES (141, 'guibarra', false, 36);
+INSERT INTO public.options VALUES (143, 'guifarra', false, 36);
+INSERT INTO public.options VALUES (144, 'guirnalda', false, 36);
+INSERT INTO public.options VALUES (145, 'injormación', false, 37);
+INSERT INTO public.options VALUES (146, 'inzormación', false, 37);
+INSERT INTO public.options VALUES (148, 'imposible', false, 37);
+INSERT INTO public.options VALUES (149, 'protesta', false, 38);
+INSERT INTO public.options VALUES (151, 'probrema', false, 38);
+INSERT INTO public.options VALUES (152, 'proglema', false, 38);
+INSERT INTO public.options VALUES (153, 'imaginafión', false, 39);
+INSERT INTO public.options VALUES (154, 'imapinación', false, 39);
+INSERT INTO public.options VALUES (155, 'imantado', false, 39);
+INSERT INTO public.options VALUES (158, 'tuelcas', false, 40);
+INSERT INTO public.options VALUES (159, 'tuestas', false, 40);
+INSERT INTO public.options VALUES (160, 'tuescas', false, 40);
+INSERT INTO public.options VALUES (161, 'bohos', false, 41);
+INSERT INTO public.options VALUES (163, 'bobos', false, 41);
+INSERT INTO public.options VALUES (164, 'bodos', false, 41);
+INSERT INTO public.options VALUES (165, 'burbuja', false, 42);
+INSERT INTO public.options VALUES (167, 'blujula', false, 42);
+INSERT INTO public.options VALUES (168, 'brúgula', false, 42);
+INSERT INTO public.options VALUES (169, 'logutora', false, 43);
+INSERT INTO public.options VALUES (170, 'localiza', false, 43);
+INSERT INTO public.options VALUES (172, 'loculora', false, 43);
+INSERT INTO public.options VALUES (173, 'node', false, 44);
+INSERT INTO public.options VALUES (174, 'nolle', false, 44);
+INSERT INTO public.options VALUES (175, 'nota', false, 44);
+INSERT INTO public.options VALUES (177, 'fotógrafos', false, 45);
+INSERT INTO public.options VALUES (178, 'fotonopias', false, 45);
+INSERT INTO public.options VALUES (179, 'fotocobias', false, 45);
+INSERT INTO public.options VALUES (181, 'despalzas', false, 46);
+INSERT INTO public.options VALUES (182, 'dercalzas', false, 46);
+INSERT INTO public.options VALUES (184, 'descartas', false, 46);
+INSERT INTO public.options VALUES (186, 'estribir', false, 47);
+INSERT INTO public.options VALUES (187, 'escrilir', false, 47);
+INSERT INTO public.options VALUES (188, 'exprimir', false, 47);
+INSERT INTO public.options VALUES (189, 'colsecuencias', false, 48);
+INSERT INTO public.options VALUES (190, 'conejeras', false, 48);
+INSERT INTO public.options VALUES (191, 'consetuencias', false, 48);
+INSERT INTO public.options VALUES (193, 'telémetro', false, 49);
+INSERT INTO public.options VALUES (194, 'telézono', false, 49);
+INSERT INTO public.options VALUES (196, 'teléjono', false, 49);
+INSERT INTO public.options VALUES (197, 'expediencia', false, 50);
+INSERT INTO public.options VALUES (199, 'expresado', false, 50);
+INSERT INTO public.options VALUES (200, 'experiescia', false, 50);
+INSERT INTO public.options VALUES (201, 'el hilo y el ...', false, 51);
+INSERT INTO public.options VALUES (202, 'delal', false, 51);
+INSERT INTO public.options VALUES (204, 'dedal', false, 51);
+INSERT INTO public.options VALUES (205, 'deval', false, 51);
+INSERT INTO public.options VALUES (206, 'nosopros', false, 52);
+INSERT INTO public.options VALUES (207, 'norteños', false, 52);
+INSERT INTO public.options VALUES (208, 'nonotros', false, 52);
+INSERT INTO public.options VALUES (211, 'quemadores', false, 53);
+INSERT INTO public.options VALUES (212, 'quemadurras', false, 53);
+INSERT INTO public.options VALUES (213, 'querraduras', false, 53);
+INSERT INTO public.options VALUES (214, 'quirólano', false, 54);
+INSERT INTO public.options VALUES (216, 'quilófano', false, 54);
+INSERT INTO public.options VALUES (217, 'quítamelo', false, 54);
+INSERT INTO public.options VALUES (218, 'caminábamos por la playa buscando ...', false, 55);
+INSERT INTO public.options VALUES (219, 'éramos', false, 55);
+INSERT INTO public.options VALUES (221, 'erizos', false, 55);
+INSERT INTO public.options VALUES (222, 'erixos', false, 55);
+INSERT INTO public.options VALUES (223, 'traslatarlas', false, 56);
+INSERT INTO public.options VALUES (225, 'trasfadarlas', false, 56);
+INSERT INTO public.options VALUES (226, 'transparentes', false, 56);
+INSERT INTO public.options VALUES (227, 'farrilia', false, 57);
+INSERT INTO public.options VALUES (228, 'famidia', false, 57);
+INSERT INTO public.options VALUES (230, 'famosa', false, 57);
+INSERT INTO public.options VALUES (232, 'natunaleza', false, 58);
+INSERT INTO public.options VALUES (233, 'nacionalidad', false, 58);
+INSERT INTO public.options VALUES (234, 'naturalefa', false, 58);
+INSERT INTO public.options VALUES (235, 'cocido', false, 59);
+INSERT INTO public.options VALUES (237, 'conazón', false, 59);
+INSERT INTO public.options VALUES (238, 'covazón', false, 59);
+INSERT INTO public.options VALUES (239, 'proteguerla', false, 60);
+INSERT INTO public.options VALUES (240, 'proteperla', false, 60);
+INSERT INTO public.options VALUES (241, 'proteínas', false, 60);
+INSERT INTO public.options VALUES (243, 'desempleabo', false, 61);
+INSERT INTO public.options VALUES (245, 'desplegado', false, 61);
+INSERT INTO public.options VALUES (246, 'desempreado', false, 61);
+INSERT INTO public.options VALUES (248, 'sumergible', false, 62);
+INSERT INTO public.options VALUES (249, 'sumengible', false, 62);
+INSERT INTO public.options VALUES (250, 'sunergible', false, 62);
+INSERT INTO public.options VALUES (251, 'sustituirle', false, 62);
+INSERT INTO public.options VALUES (252, 'roculador', false, 63);
+INSERT INTO public.options VALUES (254, 'rolulador', false, 63);
+INSERT INTO public.options VALUES (255, 'rotundo', false, 63);
+INSERT INTO public.options VALUES (256, 'perizcopio', false, 64);
+INSERT INTO public.options VALUES (257, 'periférico', false, 64);
+INSERT INTO public.options VALUES (258, 'periscotio', false, 64);
+INSERT INTO public.options VALUES (260, 'rocosos', false, 65);
+INSERT INTO public.options VALUES (261, 'rofados', false, 65);
+INSERT INTO public.options VALUES (262, 'rozalos', false, 65);
+INSERT INTO public.options VALUES (264, 'orégano', false, 66);
+INSERT INTO public.options VALUES (265, 'oséano', false, 66);
+INSERT INTO public.options VALUES (267, 'océono', false, 66);
+INSERT INTO public.options VALUES (268, 'ropa', false, 67);
+INSERT INTO public.options VALUES (269, 'rola', false, 67);
+INSERT INTO public.options VALUES (271, 'roka', false, 67);
+INSERT INTO public.options VALUES (273, 'oy', false, 68);
+INSERT INTO public.options VALUES (274, 'natasión', false, 69);
+INSERT INTO public.options VALUES (277, 'inbitar', false, 70);
+INSERT INTO public.options VALUES (278, 'colejio', false, 71);
+INSERT INTO public.options VALUES (281, 'travajo', false, 72);
+INSERT INTO public.options VALUES (282, 'selba', false, 73);
+INSERT INTO public.options VALUES (285, 'entonses', false, 74);
+INSERT INTO public.options VALUES (286, 'provlema', false, 75);
+INSERT INTO public.options VALUES (288, 'sávado', false, 76);
+INSERT INTO public.options VALUES (291, 'fásil', false, 77);
+INSERT INTO public.options VALUES (293, 'berano', false, 78);
+INSERT INTO public.options VALUES (295, 'fevrero', false, 79);
+INSERT INTO public.options VALUES (296, 'bestido', false, 80);
+INSERT INTO public.options VALUES (298, 'vañar', false, 81);
+INSERT INTO public.options VALUES (300, 'desir', false, 82);
+INSERT INTO public.options VALUES (302, 'yegar', false, 83);
+INSERT INTO public.options VALUES (304, 'situasión', false, 84);
+INSERT INTO public.options VALUES (307, 'bacaciones', false, 85);
+INSERT INTO public.options VALUES (309, 'felisitar', false, 86);
+INSERT INTO public.options VALUES (311, 'pájina', false, 87);
+INSERT INTO public.options VALUES (313, 'livro', false, 88);
+INSERT INTO public.options VALUES (314, 'varrio', false, 89);
+INSERT INTO public.options VALUES (317, 'senar', false, 90);
+INSERT INTO public.options VALUES (319, 'resolber', false, 91);
+INSERT INTO public.options VALUES (320, 'berdura', false, 92);
+INSERT INTO public.options VALUES (323, 'edifisio', false, 93);
+INSERT INTO public.options VALUES (325, 'educasión', false, 94);
+INSERT INTO public.options VALUES (326, 'primabera', false, 95);
+INSERT INTO public.options VALUES (329, 'aber', false, 96);
+INSERT INTO public.options VALUES (331, 'arriva', false, 97);
+INSERT INTO public.options VALUES (333, 'egemplo', false, 98);
+INSERT INTO public.options VALUES (334, 'silensio', false, 99);
+INSERT INTO public.options VALUES (337, 'direcsión', false, 100);
+INSERT INTO public.options VALUES (339, 'avrazar', false, 101);
+INSERT INTO public.options VALUES (341, 'boz', false, 102);
+INSERT INTO public.options VALUES (342, 'llo', false, 103);
+INSERT INTO public.options VALUES (345, 'lebantar', false, 104);
+INSERT INTO public.options VALUES (347, 'bentana', false, 105);
+INSERT INTO public.options VALUES (348, 'fávrica', false, 106);
+INSERT INTO public.options VALUES (351, 'plalla', false, 107);
+INSERT INTO public.options VALUES (353, 'aora', false, 108);
+INSERT INTO public.options VALUES (355, 'avurrido', false, 109);
+INSERT INTO public.options VALUES (356, 'somvra', false, 110);
+INSERT INTO public.options VALUES (359, 'notisia', false, 111);
+INSERT INTO public.options VALUES (360, 'vien', false, 112);
+INSERT INTO public.options VALUES (363, 'creser', false, 113);
+INSERT INTO public.options VALUES (364, 'grasias', false, 114);
+INSERT INTO public.options VALUES (367, 'bisitar', false, 115);
+INSERT INTO public.options VALUES (368, 'bolver', false, 116);
+INSERT INTO public.options VALUES (371, 'ombre', false, 117);
+INSERT INTO public.options VALUES (373, 'livre', false, 118);
+INSERT INTO public.options VALUES (374, 'nomvre', false, 119);
+INSERT INTO public.options VALUES (377, 'becino', false, 120);
+INSERT INTO public.options VALUES (379, 'presioso', false, 121);
+INSERT INTO public.options VALUES (380, 'emosión', false, 122);
+INSERT INTO public.options VALUES (382, 'elado', false, 123);
+INSERT INTO public.options VALUES (384, 'vizcocho', false, 124);
+INSERT INTO public.options VALUES (387, 'mallor', false, 125);
+INSERT INTO public.options VALUES (389, 'quinse', false, 126);
+INSERT INTO public.options VALUES (391, 'apareser', false, 127);
+INSERT INTO public.options VALUES (392, 'solusión', false, 128);
+INSERT INTO public.options VALUES (394, 'ojas', false, 129);
+INSERT INTO public.options VALUES (396, 'almasén', false, 130);
+INSERT INTO public.options VALUES (399, 'vosque', false, 131);
+INSERT INTO public.options VALUES (401, 'amaneser', false, 132);
+INSERT INTO public.options VALUES (403, 'camviar', false, 133);
+INSERT INTO public.options VALUES (404, 'avril', false, 134);
+INSERT INTO public.options VALUES (406, 'árvol', false, 135);
+INSERT INTO public.options VALUES (409, 'vueno', false, 136);
+INSERT INTO public.options VALUES (410, 'baso', false, 137);
+INSERT INTO public.options VALUES (412, 'onse', false, 138);
+INSERT INTO public.options VALUES (415, 'imajinar', false, 139);
+INSERT INTO public.options VALUES (417, 'umo', false, 140);
+INSERT INTO public.options VALUES (419, 'umano', false, 141);
+INSERT INTO public.options VALUES (420, 'vlanco', false, 142);
+INSERT INTO public.options VALUES (422, 'agradeser', false, 143);
+INSERT INTO public.options VALUES (424, 'sine', false, 144);
+INSERT INTO public.options VALUES (426, 'cansión', false, 145);
+INSERT INTO public.options VALUES (429, 'siudad', false, 146);
+INSERT INTO public.options VALUES (430, 'atensión', false, 147);
+INSERT INTO public.options VALUES (432, 'cosinar', false, 148);
+INSERT INTO public.options VALUES (434, 'faborito', false, 149);
+INSERT INTO public.options VALUES (436, 'allar', false, 150);
+INSERT INTO public.options VALUES (439, 'tamvién', false, 151);
+INSERT INTO public.options VALUES (441, 'berbo', false, 152);
+INSERT INTO public.options VALUES (442, 'enerjía', false, 153);
+INSERT INTO public.options VALUES (445, 'yover', false, 154);
+INSERT INTO public.options VALUES (447, 'amavle', false, 155);
+INSERT INTO public.options VALUES (449, 'bida', false, 156);
+INSERT INTO public.options VALUES (450, 'avierto', false, 157);
+INSERT INTO public.options VALUES (452, 'aller', false, 158);
+INSERT INTO public.options VALUES (455, 'yorar', false, 159);
+INSERT INTO public.options VALUES (457, 'conosimiento', false, 160);
+INSERT INTO public.options VALUES (458, 'mober', false, 161);
+INSERT INTO public.options VALUES (460, 'conoser', false, 162);
+INSERT INTO public.options VALUES (463, 'nuebe', false, 163);
+INSERT INTO public.options VALUES (465, 'reseta', false, 164);
+INSERT INTO public.options VALUES (467, 'aveja', false, 165);
+INSERT INTO public.options VALUES (468, 'ejercisio', false, 166);
+INSERT INTO public.options VALUES (470, 'barios', false, 167);
+INSERT INTO public.options VALUES (473, 'nuve', false, 168);
+INSERT INTO public.options VALUES (474, 'veso', false, 169);
+INSERT INTO public.options VALUES (476, 'lla', false, 170);
+INSERT INTO public.options VALUES (479, '3', false, 171);
+INSERT INTO public.options VALUES (480, '0', false, 171);
+INSERT INTO public.options VALUES (481, '1', false, 171);
+INSERT INTO public.options VALUES (482, '1', false, 172);
+INSERT INTO public.options VALUES (483, '4', false, 172);
+INSERT INTO public.options VALUES (485, '2', false, 172);
+INSERT INTO public.options VALUES (487, '4', false, 173);
+INSERT INTO public.options VALUES (488, '3', false, 173);
+INSERT INTO public.options VALUES (489, '6', false, 173);
+INSERT INTO public.options VALUES (490, '5', false, 174);
+INSERT INTO public.options VALUES (491, '7', false, 174);
+INSERT INTO public.options VALUES (493, '0', false, 174);
+INSERT INTO public.options VALUES (494, '5', false, 175);
+INSERT INTO public.options VALUES (495, '7', false, 175);
+INSERT INTO public.options VALUES (496, '4', false, 175);
+INSERT INTO public.options VALUES (498, '7', false, 176);
+INSERT INTO public.options VALUES (500, '0', false, 176);
+INSERT INTO public.options VALUES (501, '9', false, 176);
+INSERT INTO public.options VALUES (502, '4', false, 177);
+INSERT INTO public.options VALUES (503, '6', false, 177);
+INSERT INTO public.options VALUES (504, '1', false, 177);
+INSERT INTO public.options VALUES (506, '4', false, 178);
+INSERT INTO public.options VALUES (508, '3', false, 178);
+INSERT INTO public.options VALUES (509, '6', false, 178);
+INSERT INTO public.options VALUES (510, '0', false, 179);
+INSERT INTO public.options VALUES (511, '11', false, 179);
+INSERT INTO public.options VALUES (513, '9', false, 179);
+INSERT INTO public.options VALUES (514, '5', false, 180);
+INSERT INTO public.options VALUES (516, '2', false, 180);
+INSERT INTO public.options VALUES (517, '7', false, 180);
+INSERT INTO public.options VALUES (518, '6', false, 181);
+INSERT INTO public.options VALUES (519, '7', false, 181);
+INSERT INTO public.options VALUES (521, '9', false, 181);
+INSERT INTO public.options VALUES (523, '0', false, 182);
+INSERT INTO public.options VALUES (524, '3', false, 182);
+INSERT INTO public.options VALUES (525, '5', false, 182);
+INSERT INTO public.options VALUES (526, '8', false, 183);
+INSERT INTO public.options VALUES (527, '1', false, 183);
+INSERT INTO public.options VALUES (529, '10', false, 183);
+INSERT INTO public.options VALUES (530, '6', false, 184);
+INSERT INTO public.options VALUES (531, '1', false, 184);
+INSERT INTO public.options VALUES (533, '8', false, 184);
+INSERT INTO public.options VALUES (535, '8', false, 185);
+INSERT INTO public.options VALUES (536, '6', false, 185);
+INSERT INTO public.options VALUES (537, '3', false, 185);
+INSERT INTO public.options VALUES (538, '8', false, 186);
+INSERT INTO public.options VALUES (539, '11', false, 186);
+INSERT INTO public.options VALUES (540, '13', false, 186);
+INSERT INTO public.options VALUES (543, '13', false, 187);
+INSERT INTO public.options VALUES (544, '0', false, 187);
+INSERT INTO public.options VALUES (545, '11', false, 187);
+INSERT INTO public.options VALUES (546, '7', false, 188);
+INSERT INTO public.options VALUES (547, '8', false, 188);
+INSERT INTO public.options VALUES (548, '10', false, 188);
+INSERT INTO public.options VALUES (550, '13', false, 189);
+INSERT INTO public.options VALUES (551, '0', false, 189);
+INSERT INTO public.options VALUES (553, '15', false, 189);
+INSERT INTO public.options VALUES (554, '9', false, 190);
+INSERT INTO public.options VALUES (556, '11', false, 190);
+INSERT INTO public.options VALUES (557, '6', false, 190);
+INSERT INTO public.options VALUES (558, '13', false, 191);
+INSERT INTO public.options VALUES (559, '2', false, 191);
+INSERT INTO public.options VALUES (560, '15', false, 191);
+INSERT INTO public.options VALUES (563, '7', false, 192);
+INSERT INTO public.options VALUES (564, '10', false, 192);
+INSERT INTO public.options VALUES (565, '12', false, 192);
+INSERT INTO public.options VALUES (567, '3', false, 193);
+INSERT INTO public.options VALUES (568, '10', false, 193);
+INSERT INTO public.options VALUES (569, '8', false, 193);
+INSERT INTO public.options VALUES (570, '13', false, 194);
+INSERT INTO public.options VALUES (572, '4', false, 194);
+INSERT INTO public.options VALUES (573, '11', false, 194);
+INSERT INTO public.options VALUES (574, '2', false, 195);
+INSERT INTO public.options VALUES (575, '7', false, 195);
+INSERT INTO public.options VALUES (576, '9', false, 195);
+INSERT INTO public.options VALUES (578, '0', false, 196);
+INSERT INTO public.options VALUES (580, '17', false, 196);
+INSERT INTO public.options VALUES (581, '15', false, 196);
+INSERT INTO public.options VALUES (582, '8', false, 197);
+INSERT INTO public.options VALUES (583, '5', false, 197);
+INSERT INTO public.options VALUES (584, '10', false, 197);
+INSERT INTO public.options VALUES (586, '9', false, 198);
+INSERT INTO public.options VALUES (587, '11', false, 198);
+INSERT INTO public.options VALUES (589, '2', false, 198);
+INSERT INTO public.options VALUES (591, '3', false, 199);
+INSERT INTO public.options VALUES (592, '16', false, 199);
+INSERT INTO public.options VALUES (593, '14', false, 199);
+INSERT INTO public.options VALUES (594, '12', false, 200);
+INSERT INTO public.options VALUES (595, '14', false, 200);
+INSERT INTO public.options VALUES (596, '3', false, 200);
+INSERT INTO public.options VALUES (599, '7', false, 201);
+INSERT INTO public.options VALUES (600, '4', false, 201);
+INSERT INTO public.options VALUES (601, '9', false, 201);
+INSERT INTO public.options VALUES (602, '10', false, 202);
+INSERT INTO public.options VALUES (603, '3', false, 202);
+INSERT INTO public.options VALUES (605, '12', false, 202);
+INSERT INTO public.options VALUES (606, '9', false, 203);
+INSERT INTO public.options VALUES (607, '4', false, 203);
+INSERT INTO public.options VALUES (608, '11', false, 203);
+INSERT INTO public.options VALUES (610, '12', false, 204);
+INSERT INTO public.options VALUES (611, '5', false, 204);
+INSERT INTO public.options VALUES (613, '14', false, 204);
+INSERT INTO public.options VALUES (615, '21', false, 205);
+INSERT INTO public.options VALUES (616, '4', false, 205);
+INSERT INTO public.options VALUES (617, '19', false, 205);
+INSERT INTO public.options VALUES (618, '14', false, 206);
+INSERT INTO public.options VALUES (620, '1', false, 206);
+INSERT INTO public.options VALUES (621, '12', false, 206);
+INSERT INTO public.options VALUES (622, '6', false, 207);
+INSERT INTO public.options VALUES (624, '11', false, 207);
+INSERT INTO public.options VALUES (625, '13', false, 207);
+INSERT INTO public.options VALUES (626, '16', false, 208);
+INSERT INTO public.options VALUES (627, '7', false, 208);
+INSERT INTO public.options VALUES (629, '18', false, 208);
+INSERT INTO public.options VALUES (630, '15', false, 209);
+INSERT INTO public.options VALUES (631, '17', false, 209);
+INSERT INTO public.options VALUES (632, '2', false, 209);
+INSERT INTO public.options VALUES (634, '12', false, 210);
+INSERT INTO public.options VALUES (636, '1', false, 210);
+INSERT INTO public.options VALUES (637, '10', false, 210);
+INSERT INTO public.options VALUES (639, '13', false, 211);
+INSERT INTO public.options VALUES (640, '8', false, 211);
+INSERT INTO public.options VALUES (641, '15', false, 211);
+INSERT INTO public.options VALUES (642, '0', false, 212);
+INSERT INTO public.options VALUES (644, '17', false, 212);
+INSERT INTO public.options VALUES (645, '19', false, 212);
+INSERT INTO public.options VALUES (647, '15', false, 213);
+INSERT INTO public.options VALUES (648, '13', false, 213);
+INSERT INTO public.options VALUES (649, '4', false, 213);
+INSERT INTO public.options VALUES (650, '14', false, 214);
+INSERT INTO public.options VALUES (651, '7', false, 214);
+INSERT INTO public.options VALUES (652, '16', false, 214);
+INSERT INTO public.options VALUES (654, '12', false, 215);
+INSERT INTO public.options VALUES (656, '19', false, 215);
+INSERT INTO public.options VALUES (657, '17', false, 215);
+INSERT INTO public.options VALUES (658, '5', false, 216);
+INSERT INTO public.options VALUES (659, '16', false, 216);
+INSERT INTO public.options VALUES (660, '18', false, 216);
+INSERT INTO public.options VALUES (662, '1', false, 217);
+INSERT INTO public.options VALUES (664, '18', false, 217);
+INSERT INTO public.options VALUES (665, '20', false, 217);
+INSERT INTO public.options VALUES (666, '14', false, 218);
+INSERT INTO public.options VALUES (667, '1', false, 218);
+INSERT INTO public.options VALUES (669, '16', false, 218);
+INSERT INTO public.options VALUES (671, '9', false, 219);
+INSERT INTO public.options VALUES (672, '18', false, 219);
+INSERT INTO public.options VALUES (673, '16', false, 219);
+INSERT INTO public.options VALUES (674, '6', false, 220);
+INSERT INTO public.options VALUES (676, '19', false, 220);
+INSERT INTO public.options VALUES (677, '17', false, 220);
+INSERT INTO public.options VALUES (678, '17', false, 221);
+INSERT INTO public.options VALUES (679, '4', false, 221);
+INSERT INTO public.options VALUES (681, '19', false, 221);
+INSERT INTO public.options VALUES (682, '1', false, 222);
+INSERT INTO public.options VALUES (683, '16', false, 222);
+INSERT INTO public.options VALUES (684, '18', false, 222);
+INSERT INTO public.options VALUES (687, '20', false, 223);
+INSERT INTO public.options VALUES (688, '11', false, 223);
+INSERT INTO public.options VALUES (689, '18', false, 223);
+INSERT INTO public.options VALUES (690, '15', false, 224);
+INSERT INTO public.options VALUES (691, '6', false, 224);
+INSERT INTO public.options VALUES (692, '17', false, 224);
+INSERT INTO public.options VALUES (694, '18', false, 225);
+INSERT INTO public.options VALUES (696, '5', false, 225);
+INSERT INTO public.options VALUES (697, '20', false, 225);
+INSERT INTO public.options VALUES (698, '17', false, 226);
+INSERT INTO public.options VALUES (699, '12', false, 226);
+INSERT INTO public.options VALUES (701, '19', false, 226);
+INSERT INTO public.options VALUES (702, '19', false, 227);
+INSERT INTO public.options VALUES (704, '6', false, 227);
+INSERT INTO public.options VALUES (705, '21', false, 227);
+INSERT INTO public.options VALUES (706, '19', false, 228);
+INSERT INTO public.options VALUES (707, '21', false, 228);
+INSERT INTO public.options VALUES (708, '2', false, 228);
+INSERT INTO public.options VALUES (711, '8', false, 229);
+INSERT INTO public.options VALUES (712, '15', false, 229);
+INSERT INTO public.options VALUES (713, '17', false, 229);
+INSERT INTO public.options VALUES (714, '20', false, 230);
+INSERT INTO public.options VALUES (716, '15', false, 230);
+INSERT INTO public.options VALUES (717, '18', false, 230);
+INSERT INTO public.options VALUES (718, '19', false, 231);
+INSERT INTO public.options VALUES (719, '21', false, 231);
+INSERT INTO public.options VALUES (721, '8', false, 231);
+INSERT INTO public.options VALUES (722, '2', false, 232);
+INSERT INTO public.options VALUES (724, '1', false, 232);
+INSERT INTO public.options VALUES (725, '0', false, 232);
+INSERT INTO public.options VALUES (726, '0', false, 233);
+INSERT INTO public.options VALUES (727, '3', false, 233);
+INSERT INTO public.options VALUES (729, '5', false, 233);
+INSERT INTO public.options VALUES (731, '1', false, 234);
+INSERT INTO public.options VALUES (732, '2', false, 234);
+INSERT INTO public.options VALUES (733, '5', false, 234);
+INSERT INTO public.options VALUES (734, '2', false, 235);
+INSERT INTO public.options VALUES (735, '3', false, 235);
+INSERT INTO public.options VALUES (737, '1', false, 235);
+INSERT INTO public.options VALUES (738, '4', false, 236);
+INSERT INTO public.options VALUES (739, '2', false, 236);
+INSERT INTO public.options VALUES (741, '5', false, 236);
+INSERT INTO public.options VALUES (742, '2', false, 237);
+INSERT INTO public.options VALUES (743, '0', false, 237);
+INSERT INTO public.options VALUES (744, '7', false, 237);
+INSERT INTO public.options VALUES (746, '2', false, 238);
+INSERT INTO public.options VALUES (748, '4', false, 238);
+INSERT INTO public.options VALUES (749, '7', false, 238);
+INSERT INTO public.options VALUES (750, '6', false, 239);
+INSERT INTO public.options VALUES (751, '1', false, 239);
+INSERT INTO public.options VALUES (753, '3', false, 239);
+INSERT INTO public.options VALUES (754, '0', false, 240);
+INSERT INTO public.options VALUES (755, '3', false, 240);
+INSERT INTO public.options VALUES (756, '2', false, 240);
+INSERT INTO public.options VALUES (759, '3', false, 241);
+INSERT INTO public.options VALUES (760, '12', false, 241);
+INSERT INTO public.options VALUES (761, '5', false, 241);
+INSERT INTO public.options VALUES (762, '4', false, 242);
+INSERT INTO public.options VALUES (764, '7', false, 242);
+INSERT INTO public.options VALUES (765, '6', false, 242);
+INSERT INTO public.options VALUES (766, '0', false, 243);
+INSERT INTO public.options VALUES (768, '13', false, 243);
+INSERT INTO public.options VALUES (769, '2', false, 243);
+INSERT INTO public.options VALUES (770, '5', false, 244);
+INSERT INTO public.options VALUES (771, '10', false, 244);
+INSERT INTO public.options VALUES (772, '7', false, 244);
+INSERT INTO public.options VALUES (774, '6', false, 245);
+INSERT INTO public.options VALUES (775, '9', false, 245);
+INSERT INTO public.options VALUES (777, '4', false, 245);
+INSERT INTO public.options VALUES (778, '7', false, 246);
+INSERT INTO public.options VALUES (779, '14', false, 246);
+INSERT INTO public.options VALUES (780, '5', false, 246);
+INSERT INTO public.options VALUES (782, '15', false, 247);
+INSERT INTO public.options VALUES (784, '4', false, 247);
+INSERT INTO public.options VALUES (785, '6', false, 247);
+INSERT INTO public.options VALUES (786, '11', false, 248);
+INSERT INTO public.options VALUES (787, '6', false, 248);
+INSERT INTO public.options VALUES (789, '8', false, 248);
+INSERT INTO public.options VALUES (791, '9', false, 249);
+INSERT INTO public.options VALUES (792, '4', false, 249);
+INSERT INTO public.options VALUES (793, '2', false, 249);
+INSERT INTO public.options VALUES (794, '3', false, 250);
+INSERT INTO public.options VALUES (796, '14', false, 250);
+INSERT INTO public.options VALUES (797, '1', false, 250);
+INSERT INTO public.options VALUES (798, '7', false, 251);
+INSERT INTO public.options VALUES (799, '12', false, 251);
+INSERT INTO public.options VALUES (801, '9', false, 251);
+INSERT INTO public.options VALUES (803, '0', false, 252);
+INSERT INTO public.options VALUES (804, '7', false, 252);
+INSERT INTO public.options VALUES (805, '9', false, 252);
+INSERT INTO public.options VALUES (806, '15', false, 253);
+INSERT INTO public.options VALUES (808, '2', false, 253);
+INSERT INTO public.options VALUES (809, '0', false, 253);
+INSERT INTO public.options VALUES (810, '1', false, 254);
+INSERT INTO public.options VALUES (811, '16', false, 254);
+INSERT INTO public.options VALUES (812, '3', false, 254);
+INSERT INTO public.options VALUES (814, '13', false, 255);
+INSERT INTO public.options VALUES (815, '2', false, 255);
+INSERT INTO public.options VALUES (817, '4', false, 255);
+INSERT INTO public.options VALUES (818, '1', false, 256);
+INSERT INTO public.options VALUES (819, '3', false, 256);
+INSERT INTO public.options VALUES (821, '10', false, 256);
+INSERT INTO public.options VALUES (822, '11', false, 257);
+INSERT INTO public.options VALUES (823, '4', false, 257);
+INSERT INTO public.options VALUES (824, '6', false, 257);
+INSERT INTO public.options VALUES (826, '19', false, 258);
+INSERT INTO public.options VALUES (828, '0', false, 258);
+INSERT INTO public.options VALUES (829, '2', false, 258);
+INSERT INTO public.options VALUES (831, '3', false, 259);
+INSERT INTO public.options VALUES (832, '10', false, 259);
+INSERT INTO public.options VALUES (833, '5', false, 259);
+INSERT INTO public.options VALUES (834, '0', false, 260);
+INSERT INTO public.options VALUES (835, '11', false, 260);
+INSERT INTO public.options VALUES (836, '2', false, 260);
+INSERT INTO public.options VALUES (838, '13', false, 261);
+INSERT INTO public.options VALUES (840, '6', false, 261);
+INSERT INTO public.options VALUES (841, '8', false, 261);
+INSERT INTO public.options VALUES (842, '3', false, 262);
+INSERT INTO public.options VALUES (843, '12', false, 262);
+INSERT INTO public.options VALUES (845, '1', false, 262);
+INSERT INTO public.options VALUES (847, '12', false, 263);
+INSERT INTO public.options VALUES (848, '7', false, 263);
+INSERT INTO public.options VALUES (849, '5', false, 263);
+INSERT INTO public.options VALUES (850, '6', false, 264);
+INSERT INTO public.options VALUES (852, '8', false, 264);
+INSERT INTO public.options VALUES (853, '17', false, 264);
+INSERT INTO public.options VALUES (854, '5', false, 265);
+INSERT INTO public.options VALUES (855, '16', false, 265);
+INSERT INTO public.options VALUES (856, '3', false, 265);
+INSERT INTO public.options VALUES (859, '13', false, 266);
+INSERT INTO public.options VALUES (860, '4', false, 266);
+INSERT INTO public.options VALUES (861, '6', false, 266);
+INSERT INTO public.options VALUES (862, '13', false, 267);
+INSERT INTO public.options VALUES (863, '8', false, 267);
+INSERT INTO public.options VALUES (865, '10', false, 267);
+INSERT INTO public.options VALUES (866, '7', false, 268);
+INSERT INTO public.options VALUES (867, '24', false, 268);
+INSERT INTO public.options VALUES (868, '9', false, 268);
+INSERT INTO public.options VALUES (870, '15', false, 269);
+INSERT INTO public.options VALUES (872, '4', false, 269);
+INSERT INTO public.options VALUES (873, '2', false, 269);
+INSERT INTO public.options VALUES (874, '7', false, 270);
+INSERT INTO public.options VALUES (875, '18', false, 270);
+INSERT INTO public.options VALUES (877, '5', false, 270);
+INSERT INTO public.options VALUES (878, '8', false, 271);
+INSERT INTO public.options VALUES (879, '7', false, 271);
+INSERT INTO public.options VALUES (881, '15', false, 271);
+INSERT INTO public.options VALUES (882, '9', false, 272);
+INSERT INTO public.options VALUES (883, '7', false, 272);
+INSERT INTO public.options VALUES (884, '16', false, 272);
+INSERT INTO public.options VALUES (886, '14', false, 273);
+INSERT INTO public.options VALUES (887, '3', false, 273);
+INSERT INTO public.options VALUES (889, '5', false, 273);
+INSERT INTO public.options VALUES (891, '28', false, 274);
+INSERT INTO public.options VALUES (892, '7', false, 274);
+INSERT INTO public.options VALUES (893, '9', false, 274);
+INSERT INTO public.options VALUES (894, '21', false, 275);
+INSERT INTO public.options VALUES (895, '4', false, 275);
+INSERT INTO public.options VALUES (897, '2', false, 275);
+INSERT INTO public.options VALUES (899, '21', false, 276);
+INSERT INTO public.options VALUES (900, '8', false, 276);
+INSERT INTO public.options VALUES (901, '6', false, 276);
+INSERT INTO public.options VALUES (902, '20', false, 277);
+INSERT INTO public.options VALUES (904, '15', false, 277);
+INSERT INTO public.options VALUES (905, '13', false, 277);
+INSERT INTO public.options VALUES (906, '5', false, 278);
+INSERT INTO public.options VALUES (907, '3', false, 278);
+INSERT INTO public.options VALUES (908, '22', false, 278);
+INSERT INTO public.options VALUES (911, '6', false, 279);
+INSERT INTO public.options VALUES (912, '25', false, 279);
+INSERT INTO public.options VALUES (913, '4', false, 279);
+INSERT INTO public.options VALUES (914, '5', false, 280);
+INSERT INTO public.options VALUES (915, '7', false, 280);
+INSERT INTO public.options VALUES (916, '18', false, 280);
+INSERT INTO public.options VALUES (918, '4', false, 281);
+INSERT INTO public.options VALUES (919, '23', false, 281);
+INSERT INTO public.options VALUES (921, '6', false, 281);
+INSERT INTO public.options VALUES (922, '3', false, 282);
+INSERT INTO public.options VALUES (923, '5', false, 282);
+INSERT INTO public.options VALUES (924, '20', false, 282);
+INSERT INTO public.options VALUES (926, '17', false, 283);
+INSERT INTO public.options VALUES (928, '4', false, 283);
+INSERT INTO public.options VALUES (929, '6', false, 283);
+INSERT INTO public.options VALUES (931, '24', false, 284);
+INSERT INTO public.options VALUES (932, '7', false, 284);
+INSERT INTO public.options VALUES (933, '5', false, 284);
+INSERT INTO public.options VALUES (934, '31', false, 285);
+INSERT INTO public.options VALUES (935, '4', false, 285);
+INSERT INTO public.options VALUES (937, '6', false, 285);
+INSERT INTO public.options VALUES (938, '6', false, 286);
+INSERT INTO public.options VALUES (939, '27', false, 286);
+INSERT INTO public.options VALUES (940, '8', false, 286);
+INSERT INTO public.options VALUES (942, '8', false, 287);
+INSERT INTO public.options VALUES (944, '15', false, 287);
+INSERT INTO public.options VALUES (945, '10', false, 287);
+INSERT INTO public.options VALUES (947, '27', false, 288);
+INSERT INTO public.options VALUES (948, '10', false, 288);
+INSERT INTO public.options VALUES (949, '8', false, 288);
+INSERT INTO public.options VALUES (950, '7', false, 289);
+INSERT INTO public.options VALUES (951, '26', false, 289);
+INSERT INTO public.options VALUES (952, '9', false, 289);
+INSERT INTO public.options VALUES (954, '4', false, 290);
+INSERT INTO public.options VALUES (956, '19', false, 290);
+INSERT INTO public.options VALUES (957, '6', false, 290);
+INSERT INTO public.options VALUES (959, '10', false, 291);
+INSERT INTO public.options VALUES (960, '8', false, 291);
+INSERT INTO public.options VALUES (961, '19', false, 291);
+INSERT INTO public.options VALUES (962, '20', false, 292);
+INSERT INTO public.options VALUES (963, '5', false, 292);
+INSERT INTO public.options VALUES (965, '8', false, 292);
+INSERT INTO public.options VALUES (966, '8', false, 293);
+INSERT INTO public.options VALUES (967, '6', false, 293);
+INSERT INTO public.options VALUES (969, '25', false, 293);
+INSERT INTO public.options VALUES (971, '23', false, 294);
+INSERT INTO public.options VALUES (972, '6', false, 294);
+INSERT INTO public.options VALUES (973, '8', false, 294);
+INSERT INTO public.options VALUES (974, '9', false, 295);
+INSERT INTO public.options VALUES (976, '20', false, 295);
+INSERT INTO public.options VALUES (977, '7', false, 295);
+INSERT INTO public.options VALUES (978, '3', false, 296);
+INSERT INTO public.options VALUES (979, '2', false, 296);
+INSERT INTO public.options VALUES (981, '0', false, 296);
+INSERT INTO public.options VALUES (982, '4', false, 297);
+INSERT INTO public.options VALUES (984, '6', false, 297);
+INSERT INTO public.options VALUES (985, '5', false, 297);
+INSERT INTO public.options VALUES (986, '2', false, 298);
+INSERT INTO public.options VALUES (987, '3', false, 298);
+INSERT INTO public.options VALUES (988, '0', false, 298);
+INSERT INTO public.options VALUES (990, '4', false, 299);
+INSERT INTO public.options VALUES (992, '6', false, 299);
+INSERT INTO public.options VALUES (993, '10', false, 299);
+INSERT INTO public.options VALUES (994, '8', false, 300);
+INSERT INTO public.options VALUES (995, '5', false, 300);
+INSERT INTO public.options VALUES (996, '7', false, 300);
+INSERT INTO public.options VALUES (998, '9', false, 301);
+INSERT INTO public.options VALUES (999, '15', false, 301);
+INSERT INTO public.options VALUES (1001, '7', false, 301);
+INSERT INTO public.options VALUES (1002, '3', false, 302);
+INSERT INTO public.options VALUES (1004, '1', false, 302);
+INSERT INTO public.options VALUES (1005, '4', false, 302);
+INSERT INTO public.options VALUES (1006, '12', false, 303);
+INSERT INTO public.options VALUES (1007, '6', false, 303);
+INSERT INTO public.options VALUES (1008, '7', false, 303);
+INSERT INTO public.options VALUES (1010, '24', false, 304);
+INSERT INTO public.options VALUES (1011, '30', false, 304);
+INSERT INTO public.options VALUES (1012, '10', false, 304);
+INSERT INTO public.options VALUES (1015, '6', false, 305);
+INSERT INTO public.options VALUES (1016, '12', false, 305);
+INSERT INTO public.options VALUES (1017, '8', false, 305);
+INSERT INTO public.options VALUES (1018, '3', false, 306);
+INSERT INTO public.options VALUES (1019, '6', false, 306);
+INSERT INTO public.options VALUES (1021, '0', false, 306);
+INSERT INTO public.options VALUES (1022, '11', false, 307);
+INSERT INTO public.options VALUES (1024, '19', false, 307);
+INSERT INTO public.options VALUES (1025, '18', false, 307);
+INSERT INTO public.options VALUES (1026, '20', false, 308);
+INSERT INTO public.options VALUES (1027, '11', false, 308);
+INSERT INTO public.options VALUES (1028, '19', false, 308);
+INSERT INTO public.options VALUES (1030, '8', false, 309);
+INSERT INTO public.options VALUES (1031, '18', false, 309);
+INSERT INTO public.options VALUES (1033, '14', false, 309);
+INSERT INTO public.options VALUES (1035, '15', false, 310);
+INSERT INTO public.options VALUES (1036, '60', false, 310);
+INSERT INTO public.options VALUES (1037, '49', false, 310);
+INSERT INTO public.options VALUES (1038, '24', false, 311);
+INSERT INTO public.options VALUES (1040, '9', false, 311);
+INSERT INTO public.options VALUES (1041, '19', false, 311);
+INSERT INTO public.options VALUES (1042, '11', false, 312);
+INSERT INTO public.options VALUES (1043, '27', false, 312);
+INSERT INTO public.options VALUES (1044, '23', false, 312);
+INSERT INTO public.options VALUES (1046, '15', false, 313);
+INSERT INTO public.options VALUES (1047, '8', false, 313);
+INSERT INTO public.options VALUES (1049, '20', false, 313);
+INSERT INTO public.options VALUES (1050, '50', false, 314);
+INSERT INTO public.options VALUES (1052, '14', false, 314);
+INSERT INTO public.options VALUES (1053, '44', false, 314);
+INSERT INTO public.options VALUES (1054, '18', false, 315);
+INSERT INTO public.options VALUES (1055, '8', false, 315);
+INSERT INTO public.options VALUES (1056, '10', false, 315);
+INSERT INTO public.options VALUES (1059, '9', false, 316);
+INSERT INTO public.options VALUES (1060, '13', false, 316);
+INSERT INTO public.options VALUES (1061, '21', false, 316);
+INSERT INTO public.options VALUES (1062, '17', false, 317);
+INSERT INTO public.options VALUES (1063, '24', false, 317);
+INSERT INTO public.options VALUES (1064, '9', false, 317);
+INSERT INTO public.options VALUES (1066, '29', false, 318);
+INSERT INTO public.options VALUES (1067, '40', false, 318);
+INSERT INTO public.options VALUES (1069, '13', false, 318);
+INSERT INTO public.options VALUES (1070, '40', false, 319);
+INSERT INTO public.options VALUES (1071, '13', false, 319);
+INSERT INTO public.options VALUES (1072, '35', false, 319);
+INSERT INTO public.options VALUES (1074, '34', false, 320);
+INSERT INTO public.options VALUES (1075, '40', false, 320);
+INSERT INTO public.options VALUES (1077, '12', false, 320);
+INSERT INTO public.options VALUES (1079, '10', false, 321);
+INSERT INTO public.options VALUES (1080, '28', false, 321);
+INSERT INTO public.options VALUES (1081, '23', false, 321);
+INSERT INTO public.options VALUES (1082, '42', false, 322);
+INSERT INTO public.options VALUES (1084, '12', false, 322);
+INSERT INTO public.options VALUES (1085, '35', false, 322);
+INSERT INTO public.options VALUES (1086, '45', false, 323);
+INSERT INTO public.options VALUES (1087, '13', false, 323);
+INSERT INTO public.options VALUES (1088, '39', false, 323);
+INSERT INTO public.options VALUES (1090, '15', false, 324);
+INSERT INTO public.options VALUES (1091, '24', false, 324);
+INSERT INTO public.options VALUES (1093, '10', false, 324);
+INSERT INTO public.options VALUES (1095, '10', false, 325);
+INSERT INTO public.options VALUES (1096, '28', false, 325);
+INSERT INTO public.options VALUES (1097, '20', false, 325);
+INSERT INTO public.options VALUES (1098, '35', false, 326);
+INSERT INTO public.options VALUES (1100, '11', false, 326);
+INSERT INTO public.options VALUES (1101, '29', false, 326);
+INSERT INTO public.options VALUES (1102, '26', false, 327);
+INSERT INTO public.options VALUES (1104, '12', false, 327);
+INSERT INTO public.options VALUES (1105, '30', false, 327);
+INSERT INTO public.options VALUES (1106, '12', false, 328);
+INSERT INTO public.options VALUES (1107, '31', false, 328);
+INSERT INTO public.options VALUES (1108, '40', false, 328);
+INSERT INTO public.options VALUES (1110, '53', false, 329);
+INSERT INTO public.options VALUES (1111, '15', false, 329);
+INSERT INTO public.options VALUES (1113, '60', false, 329);
+INSERT INTO public.options VALUES (1115, '12', false, 330);
+INSERT INTO public.options VALUES (1116, '36', false, 330);
+INSERT INTO public.options VALUES (1117, '31', false, 330);
+INSERT INTO public.options VALUES (1118, '80', false, 331);
+INSERT INTO public.options VALUES (1119, '90', false, 331);
+INSERT INTO public.options VALUES (1120, '18', false, 331);
+INSERT INTO public.options VALUES (1122, '11', false, 332);
+INSERT INTO public.options VALUES (1124, '32', false, 332);
+INSERT INTO public.options VALUES (1125, '27', false, 332);
+INSERT INTO public.options VALUES (1126, '48', false, 333);
+INSERT INTO public.options VALUES (1127, '13', false, 333);
+INSERT INTO public.options VALUES (1128, '41', false, 333);
+INSERT INTO public.options VALUES (1130, '14', false, 334);
+INSERT INTO public.options VALUES (1132, '48', false, 334);
+INSERT INTO public.options VALUES (1133, '56', false, 334);
+INSERT INTO public.options VALUES (1134, '71', false, 335);
+INSERT INTO public.options VALUES (1135, '80', false, 335);
+INSERT INTO public.options VALUES (1137, '17', false, 335);
+INSERT INTO public.options VALUES (1139, '15', false, 336);
+INSERT INTO public.options VALUES (1140, '55', false, 336);
+INSERT INTO public.options VALUES (1141, '63', false, 336);
+INSERT INTO public.options VALUES (1142, '72', false, 337);
+INSERT INTO public.options VALUES (1143, '63', false, 337);
+INSERT INTO public.options VALUES (1144, '16', false, 337);
+INSERT INTO public.options VALUES (1147, '62', false, 338);
+INSERT INTO public.options VALUES (1148, '70', false, 338);
+INSERT INTO public.options VALUES (1149, '16', false, 338);
+INSERT INTO public.options VALUES (1150, '3', false, 339);
+INSERT INTO public.options VALUES (1152, '1', false, 339);
+INSERT INTO public.options VALUES (1153, '0', false, 339);
+INSERT INTO public.options VALUES (1154, '4', false, 340);
+INSERT INTO public.options VALUES (1155, '1', false, 340);
+INSERT INTO public.options VALUES (1157, '5', false, 340);
+INSERT INTO public.options VALUES (4, 'rojo', true, 1);
+INSERT INTO public.options VALUES (6, 'mesa', true, 2);
+INSERT INTO public.options VALUES (11, 'cartón', true, 3);
+INSERT INTO public.options VALUES (16, 'verdad', true, 4);
+INSERT INTO public.options VALUES (20, 'bici', true, 5);
+INSERT INTO public.options VALUES (23, 'frenazo', true, 6);
+INSERT INTO public.options VALUES (28, 'castor', true, 7);
+INSERT INTO public.options VALUES (29, 'camello', true, 8);
+INSERT INTO public.options VALUES (35, 'triciclo', true, 9);
+INSERT INTO public.options VALUES (38, 'días', true, 10);
+INSERT INTO public.options VALUES (43, 'televisión', true, 11);
+INSERT INTO public.options VALUES (48, 'demasiado', true, 12);
+INSERT INTO public.options VALUES (52, 'trompetista', true, 13);
+INSERT INTO public.options VALUES (54, 'habitación', true, 14);
+INSERT INTO public.options VALUES (57, 'movimiento', true, 15);
+INSERT INTO public.options VALUES (63, 'turrón', true, 16);
+INSERT INTO public.options VALUES (67, 'pueblo', true, 17);
+INSERT INTO public.options VALUES (70, 'defraudados', true, 18);
+INSERT INTO public.options VALUES (76, 'tulipán', true, 19);
+INSERT INTO public.options VALUES (78, 'mundo', true, 20);
+INSERT INTO public.options VALUES (81, 'personas', true, 21);
+INSERT INTO public.options VALUES (86, 'amigos', true, 22);
+INSERT INTO public.options VALUES (91, 'alrededor', true, 23);
+INSERT INTO public.options VALUES (96, 'viñedo', true, 24);
+INSERT INTO public.options VALUES (100, 'diferentes', true, 25);
+INSERT INTO public.options VALUES (103, 'rodillera', true, 26);
+INSERT INTO public.options VALUES (105, 'universidad', true, 27);
+INSERT INTO public.options VALUES (111, 'velocidad', true, 28);
+INSERT INTO public.options VALUES (114, 'mirada', true, 29);
+INSERT INTO public.options VALUES (119, 'razonada', true, 30);
+INSERT INTO public.options VALUES (124, 'pistoleros', true, 31);
+INSERT INTO public.options VALUES (128, 'tiempo', true, 32);
+INSERT INTO public.options VALUES (129, 'vida', true, 33);
+INSERT INTO public.options VALUES (134, 'imposible', true, 34);
+INSERT INTO public.options VALUES (139, 'animales', true, 35);
+INSERT INTO public.options VALUES (142, 'guitarra', true, 36);
+INSERT INTO public.options VALUES (147, 'información', true, 37);
+INSERT INTO public.options VALUES (150, 'problema', true, 38);
+INSERT INTO public.options VALUES (156, 'imaginación', true, 39);
+INSERT INTO public.options VALUES (157, 'tuercas', true, 40);
+INSERT INTO public.options VALUES (162, 'bolos', true, 41);
+INSERT INTO public.options VALUES (166, 'brújula', true, 42);
+INSERT INTO public.options VALUES (171, 'locutora', true, 43);
+INSERT INTO public.options VALUES (176, 'noche', true, 44);
+INSERT INTO public.options VALUES (180, 'fotocopias', true, 45);
+INSERT INTO public.options VALUES (183, 'descalzas', true, 46);
+INSERT INTO public.options VALUES (185, 'escribir', true, 47);
+INSERT INTO public.options VALUES (192, 'consecuencias', true, 48);
+INSERT INTO public.options VALUES (195, 'teléfono', true, 49);
+INSERT INTO public.options VALUES (198, 'experiencia', true, 50);
+INSERT INTO public.options VALUES (203, 'dedos', true, 51);
+INSERT INTO public.options VALUES (209, 'nosotros', true, 52);
+INSERT INTO public.options VALUES (210, 'quemaduras', true, 53);
+INSERT INTO public.options VALUES (215, 'quirófano', true, 54);
+INSERT INTO public.options VALUES (220, 'erinos', true, 55);
+INSERT INTO public.options VALUES (224, 'trasladarlas', true, 56);
+INSERT INTO public.options VALUES (229, 'familia', true, 57);
+INSERT INTO public.options VALUES (231, 'natueraleza', true, 58);
+INSERT INTO public.options VALUES (236, 'corazón', true, 59);
+INSERT INTO public.options VALUES (242, 'protegerla', true, 60);
+INSERT INTO public.options VALUES (244, 'desempleado', true, 61);
+INSERT INTO public.options VALUES (247, 'ya que no es ...', true, 62);
+INSERT INTO public.options VALUES (253, 'rotulador', true, 63);
+INSERT INTO public.options VALUES (259, 'periscopio', true, 64);
+INSERT INTO public.options VALUES (263, 'rozados', true, 65);
+INSERT INTO public.options VALUES (266, 'océano', true, 66);
+INSERT INTO public.options VALUES (270, 'rota', true, 67);
+INSERT INTO public.options VALUES (272, 'hoy', true, 68);
+INSERT INTO public.options VALUES (275, 'natación', true, 69);
+INSERT INTO public.options VALUES (276, 'invitar', true, 70);
+INSERT INTO public.options VALUES (279, 'colegio', true, 71);
+INSERT INTO public.options VALUES (280, 'trabajo', true, 72);
+INSERT INTO public.options VALUES (283, 'selva', true, 73);
+INSERT INTO public.options VALUES (284, 'entonces', true, 74);
+INSERT INTO public.options VALUES (287, 'problema', true, 75);
+INSERT INTO public.options VALUES (289, 'sábado', true, 76);
+INSERT INTO public.options VALUES (290, 'fácil', true, 77);
+INSERT INTO public.options VALUES (292, 'verano', true, 78);
+INSERT INTO public.options VALUES (294, 'febrero', true, 79);
+INSERT INTO public.options VALUES (297, 'vestido', true, 80);
+INSERT INTO public.options VALUES (299, 'bañar', true, 81);
+INSERT INTO public.options VALUES (301, 'decir', true, 82);
+INSERT INTO public.options VALUES (303, 'llegar', true, 83);
+INSERT INTO public.options VALUES (305, 'situación', true, 84);
+INSERT INTO public.options VALUES (306, 'vacaciones', true, 85);
+INSERT INTO public.options VALUES (308, 'felicitar', true, 86);
+INSERT INTO public.options VALUES (310, 'página', true, 87);
+INSERT INTO public.options VALUES (312, 'libro', true, 88);
+INSERT INTO public.options VALUES (315, 'barrio', true, 89);
+INSERT INTO public.options VALUES (316, 'cenar', true, 90);
+INSERT INTO public.options VALUES (318, 'resolver', true, 91);
+INSERT INTO public.options VALUES (321, 'verdura', true, 92);
+INSERT INTO public.options VALUES (322, 'edificio', true, 93);
+INSERT INTO public.options VALUES (324, 'educación', true, 94);
+INSERT INTO public.options VALUES (327, 'primavera', true, 95);
+INSERT INTO public.options VALUES (328, 'haber', true, 96);
+INSERT INTO public.options VALUES (330, 'arriba', true, 97);
+INSERT INTO public.options VALUES (332, 'ejemplo', true, 98);
+INSERT INTO public.options VALUES (335, 'silencio', true, 99);
+INSERT INTO public.options VALUES (336, 'dirección', true, 100);
+INSERT INTO public.options VALUES (338, 'abrazar', true, 101);
+INSERT INTO public.options VALUES (340, 'voz', true, 102);
+INSERT INTO public.options VALUES (343, 'yo', true, 103);
+INSERT INTO public.options VALUES (344, 'levantar', true, 104);
+INSERT INTO public.options VALUES (346, 'ventana', true, 105);
+INSERT INTO public.options VALUES (349, 'fábrica', true, 106);
+INSERT INTO public.options VALUES (350, 'playa', true, 107);
+INSERT INTO public.options VALUES (352, 'ahora', true, 108);
+INSERT INTO public.options VALUES (354, 'aburrido', true, 109);
+INSERT INTO public.options VALUES (357, 'sombra', true, 110);
+INSERT INTO public.options VALUES (358, 'noticia', true, 111);
+INSERT INTO public.options VALUES (361, 'bien', true, 112);
+INSERT INTO public.options VALUES (362, 'crecer', true, 113);
+INSERT INTO public.options VALUES (365, 'gracias', true, 114);
+INSERT INTO public.options VALUES (366, 'visitar', true, 115);
+INSERT INTO public.options VALUES (369, 'volver', true, 116);
+INSERT INTO public.options VALUES (370, 'hombre', true, 117);
+INSERT INTO public.options VALUES (372, 'libre', true, 118);
+INSERT INTO public.options VALUES (375, 'nombre', true, 119);
+INSERT INTO public.options VALUES (376, 'vecino', true, 120);
+INSERT INTO public.options VALUES (378, 'precioso', true, 121);
+INSERT INTO public.options VALUES (381, 'emoción', true, 122);
+INSERT INTO public.options VALUES (383, 'helado', true, 123);
+INSERT INTO public.options VALUES (385, 'bizcocho', true, 124);
+INSERT INTO public.options VALUES (386, 'mayor', true, 125);
+INSERT INTO public.options VALUES (388, 'quince', true, 126);
+INSERT INTO public.options VALUES (390, 'aparecer', true, 127);
+INSERT INTO public.options VALUES (393, 'solución', true, 128);
+INSERT INTO public.options VALUES (395, 'hojas', true, 129);
+INSERT INTO public.options VALUES (397, 'almacén', true, 130);
+INSERT INTO public.options VALUES (398, 'bosque', true, 131);
+INSERT INTO public.options VALUES (400, 'amanecer', true, 132);
+INSERT INTO public.options VALUES (402, 'cambiar', true, 133);
+INSERT INTO public.options VALUES (405, 'abril', true, 134);
+INSERT INTO public.options VALUES (407, 'árbol', true, 135);
+INSERT INTO public.options VALUES (408, 'bueno', true, 136);
+INSERT INTO public.options VALUES (411, 'vaso', true, 137);
+INSERT INTO public.options VALUES (413, 'once', true, 138);
+INSERT INTO public.options VALUES (414, 'imaginar', true, 139);
+INSERT INTO public.options VALUES (416, 'humo', true, 140);
+INSERT INTO public.options VALUES (418, 'humano', true, 141);
+INSERT INTO public.options VALUES (421, 'blanco', true, 142);
+INSERT INTO public.options VALUES (423, 'agradecer', true, 143);
+INSERT INTO public.options VALUES (425, 'cine', true, 144);
+INSERT INTO public.options VALUES (427, 'canción', true, 145);
+INSERT INTO public.options VALUES (428, 'ciudad', true, 146);
+INSERT INTO public.options VALUES (431, 'atención', true, 147);
+INSERT INTO public.options VALUES (433, 'cocinar', true, 148);
+INSERT INTO public.options VALUES (435, 'favorito', true, 149);
+INSERT INTO public.options VALUES (437, 'hallar', true, 150);
+INSERT INTO public.options VALUES (438, 'también', true, 151);
+INSERT INTO public.options VALUES (440, 'verbo', true, 152);
+INSERT INTO public.options VALUES (443, 'energía', true, 153);
+INSERT INTO public.options VALUES (444, 'llover', true, 154);
+INSERT INTO public.options VALUES (446, 'amable', true, 155);
+INSERT INTO public.options VALUES (448, 'vida', true, 156);
+INSERT INTO public.options VALUES (451, 'abierto', true, 157);
+INSERT INTO public.options VALUES (453, 'ayer', true, 158);
+INSERT INTO public.options VALUES (454, 'llorar', true, 159);
+INSERT INTO public.options VALUES (456, 'conocimiento', true, 160);
+INSERT INTO public.options VALUES (459, 'mover', true, 161);
+INSERT INTO public.options VALUES (461, 'conocer', true, 162);
+INSERT INTO public.options VALUES (462, 'nueve', true, 163);
+INSERT INTO public.options VALUES (464, 'receta', true, 164);
+INSERT INTO public.options VALUES (466, 'abeja', true, 165);
+INSERT INTO public.options VALUES (469, 'ejercicio', true, 166);
+INSERT INTO public.options VALUES (471, 'varios', true, 167);
+INSERT INTO public.options VALUES (472, 'nube', true, 168);
+INSERT INTO public.options VALUES (475, 'beso', true, 169);
+INSERT INTO public.options VALUES (477, 'ya', true, 170);
+INSERT INTO public.options VALUES (478, '2', true, 171);
+INSERT INTO public.options VALUES (484, '3', true, 172);
+INSERT INTO public.options VALUES (486, '5', true, 173);
+INSERT INTO public.options VALUES (492, '6', true, 174);
+INSERT INTO public.options VALUES (497, '6', true, 175);
+INSERT INTO public.options VALUES (499, '8', true, 176);
+INSERT INTO public.options VALUES (505, '5', true, 177);
+INSERT INTO public.options VALUES (507, '5', true, 178);
+INSERT INTO public.options VALUES (512, '10', true, 179);
+INSERT INTO public.options VALUES (515, '6', true, 180);
+INSERT INTO public.options VALUES (520, '8', true, 181);
+INSERT INTO public.options VALUES (522, '4', true, 182);
+INSERT INTO public.options VALUES (528, '9', true, 183);
+INSERT INTO public.options VALUES (532, '7', true, 184);
+INSERT INTO public.options VALUES (534, '7', true, 185);
+INSERT INTO public.options VALUES (541, '12', true, 186);
+INSERT INTO public.options VALUES (542, '12', true, 187);
+INSERT INTO public.options VALUES (549, '9', true, 188);
+INSERT INTO public.options VALUES (552, '14', true, 189);
+INSERT INTO public.options VALUES (555, '10', true, 190);
+INSERT INTO public.options VALUES (561, '14', true, 191);
+INSERT INTO public.options VALUES (562, '11', true, 192);
+INSERT INTO public.options VALUES (566, '9', true, 193);
+INSERT INTO public.options VALUES (571, '12', true, 194);
+INSERT INTO public.options VALUES (577, '8', true, 195);
+INSERT INTO public.options VALUES (579, '16', true, 196);
+INSERT INTO public.options VALUES (585, '9', true, 197);
+INSERT INTO public.options VALUES (588, '10', true, 198);
+INSERT INTO public.options VALUES (590, '15', true, 199);
+INSERT INTO public.options VALUES (597, '13', true, 200);
+INSERT INTO public.options VALUES (598, '8', true, 201);
+INSERT INTO public.options VALUES (604, '11', true, 202);
+INSERT INTO public.options VALUES (609, '10', true, 203);
+INSERT INTO public.options VALUES (612, '13', true, 204);
+INSERT INTO public.options VALUES (614, '20', true, 205);
+INSERT INTO public.options VALUES (619, '13', true, 206);
+INSERT INTO public.options VALUES (623, '12', true, 207);
+INSERT INTO public.options VALUES (628, '17', true, 208);
+INSERT INTO public.options VALUES (633, '16', true, 209);
+INSERT INTO public.options VALUES (635, '11', true, 210);
+INSERT INTO public.options VALUES (638, '14', true, 211);
+INSERT INTO public.options VALUES (643, '18', true, 212);
+INSERT INTO public.options VALUES (646, '14', true, 213);
+INSERT INTO public.options VALUES (653, '15', true, 214);
+INSERT INTO public.options VALUES (655, '18', true, 215);
+INSERT INTO public.options VALUES (661, '17', true, 216);
+INSERT INTO public.options VALUES (663, '19', true, 217);
+INSERT INTO public.options VALUES (668, '15', true, 218);
+INSERT INTO public.options VALUES (670, '17', true, 219);
+INSERT INTO public.options VALUES (675, '18', true, 220);
+INSERT INTO public.options VALUES (680, '18', true, 221);
+INSERT INTO public.options VALUES (685, '17', true, 222);
+INSERT INTO public.options VALUES (686, '19', true, 223);
+INSERT INTO public.options VALUES (693, '16', true, 224);
+INSERT INTO public.options VALUES (695, '19', true, 225);
+INSERT INTO public.options VALUES (700, '18', true, 226);
+INSERT INTO public.options VALUES (703, '20', true, 227);
+INSERT INTO public.options VALUES (709, '20', true, 228);
+INSERT INTO public.options VALUES (710, '16', true, 229);
+INSERT INTO public.options VALUES (715, '19', true, 230);
+INSERT INTO public.options VALUES (720, '20', true, 231);
+INSERT INTO public.options VALUES (723, '3', true, 232);
+INSERT INTO public.options VALUES (728, '4', true, 233);
+INSERT INTO public.options VALUES (730, '4', true, 234);
+INSERT INTO public.options VALUES (736, '0', true, 235);
+INSERT INTO public.options VALUES (740, '3', true, 236);
+INSERT INTO public.options VALUES (745, '1', true, 237);
+INSERT INTO public.options VALUES (747, '3', true, 238);
+INSERT INTO public.options VALUES (752, '2', true, 239);
+INSERT INTO public.options VALUES (757, '1', true, 240);
+INSERT INTO public.options VALUES (758, '4', true, 241);
+INSERT INTO public.options VALUES (763, '5', true, 242);
+INSERT INTO public.options VALUES (767, '1', true, 243);
+INSERT INTO public.options VALUES (773, '6', true, 244);
+INSERT INTO public.options VALUES (776, '5', true, 245);
+INSERT INTO public.options VALUES (781, '6', true, 246);
+INSERT INTO public.options VALUES (783, '5', true, 247);
+INSERT INTO public.options VALUES (788, '7', true, 248);
+INSERT INTO public.options VALUES (790, '3', true, 249);
+INSERT INTO public.options VALUES (795, '2', true, 250);
+INSERT INTO public.options VALUES (800, '8', true, 251);
+INSERT INTO public.options VALUES (802, '8', true, 252);
+INSERT INTO public.options VALUES (807, '1', true, 253);
+INSERT INTO public.options VALUES (813, '2', true, 254);
+INSERT INTO public.options VALUES (816, '3', true, 255);
+INSERT INTO public.options VALUES (820, '2', true, 256);
+INSERT INTO public.options VALUES (825, '5', true, 257);
+INSERT INTO public.options VALUES (827, '1', true, 258);
+INSERT INTO public.options VALUES (830, '4', true, 259);
+INSERT INTO public.options VALUES (837, '1', true, 260);
+INSERT INTO public.options VALUES (839, '7', true, 261);
+INSERT INTO public.options VALUES (844, '2', true, 262);
+INSERT INTO public.options VALUES (846, '6', true, 263);
+INSERT INTO public.options VALUES (851, '7', true, 264);
+INSERT INTO public.options VALUES (857, '4', true, 265);
+INSERT INTO public.options VALUES (858, '5', true, 266);
+INSERT INTO public.options VALUES (864, '9', true, 267);
+INSERT INTO public.options VALUES (869, '8', true, 268);
+INSERT INTO public.options VALUES (871, '3', true, 269);
+INSERT INTO public.options VALUES (876, '6', true, 270);
+INSERT INTO public.options VALUES (880, '6', true, 271);
+INSERT INTO public.options VALUES (885, '8', true, 272);
+INSERT INTO public.options VALUES (888, '4', true, 273);
+INSERT INTO public.options VALUES (890, '8', true, 274);
+INSERT INTO public.options VALUES (896, '3', true, 275);
+INSERT INTO public.options VALUES (898, '7', true, 276);
+INSERT INTO public.options VALUES (903, '14', true, 277);
+INSERT INTO public.options VALUES (909, '4', true, 278);
+INSERT INTO public.options VALUES (910, '5', true, 279);
+INSERT INTO public.options VALUES (917, '6', true, 280);
+INSERT INTO public.options VALUES (920, '5', true, 281);
+INSERT INTO public.options VALUES (925, '4', true, 282);
+INSERT INTO public.options VALUES (927, '5', true, 283);
+INSERT INTO public.options VALUES (930, '6', true, 284);
+INSERT INTO public.options VALUES (936, '5', true, 285);
+INSERT INTO public.options VALUES (941, '7', true, 286);
+INSERT INTO public.options VALUES (943, '9', true, 287);
+INSERT INTO public.options VALUES (946, '9', true, 288);
+INSERT INTO public.options VALUES (953, '8', true, 289);
+INSERT INTO public.options VALUES (955, '5', true, 290);
+INSERT INTO public.options VALUES (958, '9', true, 291);
+INSERT INTO public.options VALUES (964, '6', true, 292);
+INSERT INTO public.options VALUES (968, '7', true, 293);
+INSERT INTO public.options VALUES (970, '7', true, 294);
+INSERT INTO public.options VALUES (975, '8', true, 295);
+INSERT INTO public.options VALUES (980, '1', true, 296);
+INSERT INTO public.options VALUES (983, '1', true, 297);
+INSERT INTO public.options VALUES (989, '1', true, 298);
+INSERT INTO public.options VALUES (991, '5', true, 299);
+INSERT INTO public.options VALUES (997, '6', true, 300);
+INSERT INTO public.options VALUES (1000, '10', true, 301);
+INSERT INTO public.options VALUES (1003, '2', true, 302);
+INSERT INTO public.options VALUES (1009, '8', true, 303);
+INSERT INTO public.options VALUES (1013, '25', true, 304);
+INSERT INTO public.options VALUES (1014, '9', true, 305);
+INSERT INTO public.options VALUES (1020, '4', true, 306);
+INSERT INTO public.options VALUES (1023, '12', true, 307);
+INSERT INTO public.options VALUES (1029, '18', true, 308);
+INSERT INTO public.options VALUES (1032, '15', true, 309);
+INSERT INTO public.options VALUES (1034, '50', true, 310);
+INSERT INTO public.options VALUES (1039, '20', true, 311);
+INSERT INTO public.options VALUES (1045, '24', true, 312);
+INSERT INTO public.options VALUES (1048, '16', true, 313);
+INSERT INTO public.options VALUES (1051, '45', true, 314);
+INSERT INTO public.options VALUES (1057, '9', true, 315);
+INSERT INTO public.options VALUES (1058, '14', true, 316);
+INSERT INTO public.options VALUES (1065, '18', true, 317);
+INSERT INTO public.options VALUES (1068, '30', true, 318);
+INSERT INTO public.options VALUES (1073, '36', true, 319);
+INSERT INTO public.options VALUES (1076, '35', true, 320);
+INSERT INTO public.options VALUES (1078, '24', true, 321);
+INSERT INTO public.options VALUES (1083, '36', true, 322);
+INSERT INTO public.options VALUES (1089, '40', true, 323);
+INSERT INTO public.options VALUES (1092, '16', true, 324);
+INSERT INTO public.options VALUES (1094, '21', true, 325);
+INSERT INTO public.options VALUES (1099, '30', true, 326);
+INSERT INTO public.options VALUES (1103, '27', true, 327);
+INSERT INTO public.options VALUES (1109, '32', true, 328);
+INSERT INTO public.options VALUES (1112, '54', true, 329);
+INSERT INTO public.options VALUES (1114, '32', true, 330);
+INSERT INTO public.options VALUES (1121, '81', true, 331);
+INSERT INTO public.options VALUES (1123, '28', true, 332);
+INSERT INTO public.options VALUES (1129, '42', true, 333);
+INSERT INTO public.options VALUES (1131, '49', true, 334);
+INSERT INTO public.options VALUES (1136, '72', true, 335);
+INSERT INTO public.options VALUES (1138, '56', true, 336);
+INSERT INTO public.options VALUES (1145, '64', true, 337);
+INSERT INTO public.options VALUES (1146, '63', true, 338);
+INSERT INTO public.options VALUES (1151, '2', true, 339);
+INSERT INTO public.options VALUES (1156, '6', true, 340);
+
+--- Actualizamos las secuencias necesarias.
+SELECT pg_catalog.setval('public."statuses_id_seq"', 4, false);
+SELECT pg_catalog.setval('public."grades_id_seq"', 8, false);
+SELECT pg_catalog.setval('public."tests_id_seq"', 4, false);
+SELECT pg_catalog.setval('public."parts_id_seq"', 6, false);
+SELECT pg_catalog.setval('public."questions_id_seq"', 341, false);
+SELECT pg_catalog.setval('public."options_id_seq"', 1157, false);
+
+INSERT INTO public.users (email, username) VALUES ('test change id', 'test');
+UPDATE public.users set id = 0 where email = 'test change id';
+update public.users set email = 'test' where id = 0;
